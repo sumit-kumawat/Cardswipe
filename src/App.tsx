@@ -326,7 +326,7 @@ const Register = () => {
   );
 };
 
-const Dashboard = ({ user }: { user: UserData }) => {
+const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | null) => void }) => {
   const [cards, setCards] = useState<Card[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [parties, setParties] = useState<Party[]>([]);
@@ -335,25 +335,43 @@ const Dashboard = ({ user }: { user: UserData }) => {
   const [showAddTransaction, setShowAddTransaction] = useState(false);
   const [showAddParty, setShowAddParty] = useState(false);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const verified = searchParams.get('verified');
 
+  const checkVerificationStatus = async () => {
+    setRefreshing(true);
+    try {
+      const res = await fetch('/api/me');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.isVerified) {
+          setUser(data);
+          toast.success('Email verified successfully!');
+          setSearchParams({});
+        } else {
+          toast.error('Email still not verified. Please check your inbox.');
+        }
+      }
+    } catch (e) {
+      toast.error('Failed to check status');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const fetchData = async () => {
     try {
-      // If we just verified, re-fetch the user profile to get updated isVerified status
+      // If we just verified via redirect, check status
       if (verified === 'true') {
         const meRes = await fetch('/api/me');
         if (meRes.ok) {
           const userData = await meRes.json();
-          // We need to update the parent state. 
-          // Since we don't have direct access to setUser here easily without passing it down,
-          // we can at least reload if the status changed or show a message.
           if (userData.isVerified) {
+            setUser(userData);
             toast.success('Email verified successfully!');
-            // Remove the query param and reload to update the app state
             setSearchParams({});
-            window.location.reload();
             return;
           }
         }
@@ -385,8 +403,8 @@ const Dashboard = ({ user }: { user: UserData }) => {
         if (res.ok) {
           const data = await res.json();
           if (data.isVerified) {
+            setUser(data);
             toast.success('Email verified!');
-            window.location.reload();
           }
         }
       }, 10000);
@@ -411,7 +429,9 @@ const Dashboard = ({ user }: { user: UserData }) => {
           <h1 className="text-2xl font-bold">Verify Your Email</h1>
           <p className="text-gray-500 mt-2">We've sent a verification link to {user.email}. Please verify your email to access the dashboard.</p>
           <div className="mt-6 flex flex-col gap-2">
-            <Button onClick={() => window.location.reload()}>I've Verified</Button>
+            <Button onClick={checkVerificationStatus} disabled={refreshing}>
+              {refreshing ? 'Checking...' : "I've Verified"}
+            </Button>
             <Button variant="secondary" onClick={async () => {
               try {
                 const res = await fetch('/api/resend-verification', { method: 'POST' });
@@ -1301,7 +1321,7 @@ export default function App() {
         <Route path="/login" element={user ? <Navigate to="/" /> : <Login onLogin={setUser} />} />
         <Route path="/register" element={user ? <Navigate to="/" /> : <Register />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/" element={user ? <Dashboard user={user} /> : <Navigate to="/login" />} />
+        <Route path="/" element={user ? <Dashboard user={user} setUser={setUser} /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>

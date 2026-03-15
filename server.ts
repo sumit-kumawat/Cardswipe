@@ -101,12 +101,18 @@ async function startServer() {
 
   app.get('/verify-email', (req, res) => {
     const { token } = req.query;
+    console.log(`Verification attempt with token: ${token}`);
     const db = getDb();
     const user = db.users.find(u => u.verificationToken === token);
-    if (!user) return res.status(400).send('Invalid or expired verification token.');
+    if (!user) {
+      console.log(`Verification failed: No user found for token ${token}`);
+      return res.status(400).send('Invalid or expired verification token.');
+    }
+    console.log(`Verifying user: ${user.email}`);
     user.isVerified = true;
     delete user.verificationToken;
     saveDb(db);
+    console.log(`User ${user.email} verified successfully`);
     // Redirect to home page with a success flag
     res.redirect('/?verified=true');
   });
