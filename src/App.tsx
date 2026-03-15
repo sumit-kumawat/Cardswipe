@@ -209,7 +209,7 @@ const Login = ({ onLogin }: any) => {
           <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200">
             <CreditCard className="text-white w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Credit Card Manager</h1>
+          <h1 className="text-2xl font-bold text-gray-900">CardSwipe</h1>
           <p className="text-gray-500 mt-2">Manage your cards and lending securely</p>
         </div>
 

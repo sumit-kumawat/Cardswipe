@@ -1,5 +1,5 @@
 {
-  "name": "Cardswipe",
+  "name": "CardSwipe",
   "description": "A secure full-stack platform for managing credit cards, tracking transactions, and monitoring lent amounts with automated reminders.",
   "requestFramePermissions": []
 }
