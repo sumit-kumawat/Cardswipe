@@ -79,16 +79,36 @@ async function startServer() {
     }
     res.json({ message: 'Registration successful. Please check your email for verification.' });
   });
+  
+  app.post('/api/resend-verification', requireAuth, async (req: any, res) => {
+    const db = getDb();
+    const user = db.users.find(u => u.id === req.session.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.isVerified) return res.status(400).json({ error: 'Email already verified' });
+    
+    const verificationToken = uuidv4();
+    user.verificationToken = verificationToken;
+    saveDb(db);
+    
+    try {
+      await sendVerificationEmail(user.email, verificationToken);
+      res.json({ message: 'Verification email resent successfully.' });
+    } catch (e) {
+      console.error('Failed to resend email', e);
+      res.status(500).json({ error: 'Failed to send email' });
+    }
+  });
 
-  app.get('/api/verify-email', (req, res) => {
+  app.get('/verify-email', (req, res) => {
     const { token } = req.query;
     const db = getDb();
     const user = db.users.find(u => u.verificationToken === token);
-    if (!user) return res.status(400).json({ error: 'Invalid token' });
+    if (!user) return res.status(400).send('Invalid or expired verification token.');
     user.isVerified = true;
     delete user.verificationToken;
     saveDb(db);
-    res.send('Email verified successfully! You can now log in.');
+    // Redirect to home page with a success flag
+    res.redirect('/?verified=true');
   });
 
   app.post('/api/login', async (req, res) => {

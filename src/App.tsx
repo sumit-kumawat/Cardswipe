@@ -336,8 +336,29 @@ const Dashboard = ({ user }: { user: UserData }) => {
   const [showAddParty, setShowAddParty] = useState(false);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const verified = searchParams.get('verified');
+
   const fetchData = async () => {
     try {
+      // If we just verified, re-fetch the user profile to get updated isVerified status
+      if (verified === 'true') {
+        const meRes = await fetch('/api/me');
+        if (meRes.ok) {
+          const userData = await meRes.json();
+          // We need to update the parent state. 
+          // Since we don't have direct access to setUser here easily without passing it down,
+          // we can at least reload if the status changed or show a message.
+          if (userData.isVerified) {
+            toast.success('Email verified successfully!');
+            // Remove the query param and reload to update the app state
+            setSearchParams({});
+            window.location.reload();
+            return;
+          }
+        }
+      }
+
       const [cardsRes, transRes, partiesRes] = await Promise.all([
         fetch('/api/cards'),
         fetch('/api/transactions'),
@@ -355,6 +376,25 @@ const Dashboard = ({ user }: { user: UserData }) => {
 
   useEffect(() => {
     fetchData();
+    
+    // Auto-refresh user data if not verified to catch verification from another tab
+    let interval: any;
+    if (!user.isVerified && user.role !== 'admin') {
+      interval = setInterval(async () => {
+        const res = await fetch('/api/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.isVerified) {
+            toast.success('Email verified!');
+            window.location.reload();
+          }
+        }
+      }, 10000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, []);
 
   const totalLimit = cards.reduce((sum, c) => sum + c.limit, 0);
@@ -373,6 +413,16 @@ const Dashboard = ({ user }: { user: UserData }) => {
           <div className="mt-6 flex flex-col gap-2">
             <Button onClick={() => window.location.reload()}>I've Verified</Button>
             <Button variant="secondary" onClick={async () => {
+              try {
+                const res = await fetch('/api/resend-verification', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) toast.success(data.message);
+                else toast.error(data.error);
+              } catch (e) {
+                toast.error('Failed to resend email');
+              }
+            }}>Resend Verification Email</Button>
+            <Button variant="ghost" onClick={async () => {
               await fetch('/api/logout', { method: 'POST' });
               window.location.href = '/login';
             }}>Sign Out & Go Back</Button>

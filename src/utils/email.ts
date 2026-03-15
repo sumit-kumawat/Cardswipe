@@ -28,7 +28,8 @@ const FROM_EMAIL = SMTP_USER.includes('@')
   : `"CardSwipe" <no-reply@conzex.com>`;
 
 export const sendVerificationEmail = async (email: string, token: string) => {
-  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  let baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
   const url = `${baseUrl}/verify-email?token=${token}`;
   console.log(`Attempting to send verification email to: ${email}`);
   try {
@@ -75,7 +76,8 @@ export const sendDueReminder = async (email: string, cardName: string, dueDate: 
 };
 
 export const sendPasswordResetEmail = async (email: string, token: string) => {
-  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  let baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
   const url = `${baseUrl}/reset-password?token=${token}`;
   console.log(`Attempting to send password reset email to: ${email}`);
   try {
