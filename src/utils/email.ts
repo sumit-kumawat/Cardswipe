@@ -1,15 +1,15 @@
 import nodemailer from 'nodemailer';
 
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || "465");
-const SMTP_USER = process.env.SMTP_USER || "info@sumitkumawat.com";
+const SMTP_USER = process.env.SMTP_USER || "no-reply@conzex.com";
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "mail.sumitkumawat.com",
+  host: process.env.SMTP_HOST || "mail.conzex.com",
   port: SMTP_PORT,
   secure: SMTP_PORT === 465,
   auth: {
     user: SMTP_USER,
-    pass: process.env.SMTP_PASS || "Sumit@123"
+    pass: process.env.SMTP_PASS || "p]M9b|Y2?"
   }
 });
 
@@ -25,7 +25,7 @@ transporter.verify((error, success) => {
 // Ensure FROM_EMAIL always has a valid domain
 const FROM_EMAIL = SMTP_USER.includes('@') 
   ? `"CardSwipe" <${SMTP_USER}>` 
-  : `"CardSwipe" <info@sumitkumawat.com>`;
+  : `"CardSwipe" <no-reply@conzex.com>`;
 
 export const sendVerificationEmail = async (email: string, token: string) => {
   const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
