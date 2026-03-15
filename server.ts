@@ -52,6 +52,41 @@ async function startServer() {
     next();
   };
 
+  // Middleware to check admin
+  const requireAdmin = (req: any, res: any, next: any) => {
+    if (req.session.userId !== 'admin-id') {
+      const db = getDb();
+      const user = db.users.find(u => u.id === req.session.userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ error: 'Forbidden: Admin access required' });
+      }
+    }
+    next();
+  };
+
+  const logActivity = (userId: string, action: string, details: string, req: any) => {
+    const db = getDb();
+    let userEmail = 'system';
+    if (userId === 'admin-id') {
+      userEmail = 'admin';
+    } else {
+      const user = db.users.find(u => u.id === userId);
+      if (user) userEmail = user.email;
+    }
+
+    const log: any = {
+      id: uuidv4(),
+      userId,
+      userEmail,
+      action,
+      details,
+      ip: req.ip,
+      timestamp: new Date().toISOString()
+    };
+    db.logs.push(log);
+    saveDb(db);
+  };
+
   // --- Auth Routes ---
   app.post('/api/register', async (req, res) => {
     const { fullName, email, password } = req.body;
@@ -72,6 +107,7 @@ async function startServer() {
     };
     db.users.push(newUser);
     saveDb(db);
+    logActivity(newUser.id, 'REGISTER', 'User registered', req);
     try {
       await sendVerificationEmail(email, verificationToken);
     } catch (e) {
@@ -109,9 +145,14 @@ async function startServer() {
       return res.status(400).send('Invalid or expired verification token.');
     }
     console.log(`Verifying user: ${user.email}`);
+    if (user.pendingEmail) {
+      user.email = user.pendingEmail;
+      delete user.pendingEmail;
+    }
     user.isVerified = true;
     delete user.verificationToken;
     saveDb(db);
+    logActivity(user.id, 'VERIFY_EMAIL', 'Email verified successfully', req);
     console.log(`User ${user.email} verified successfully`);
     // Redirect to home page with a success flag
     res.redirect('/?verified=true');
@@ -123,15 +164,18 @@ async function startServer() {
     // Hardcoded Admin
     if (email === 'admin' && password === 'admin') {
       req.session.userId = 'admin-id';
+      logActivity('admin-id', 'LOGIN', 'Admin logged in', req);
       return res.json({ user: { id: 'admin-id', fullName: 'Administrator', role: 'admin' } });
     }
 
     const db = getDb();
     const user = db.users.find(u => u.email === email);
     if (!user || !(await bcrypt.compare(password, user.password))) {
+      logActivity('unknown', 'LOGIN_FAILED', `Failed login attempt for ${email}`, req);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     req.session.userId = user.id;
+    logActivity(user.id, 'LOGIN', 'User logged in', req);
     res.json({ user: { id: user.id, fullName: user.fullName, email: user.email, isVerified: user.isVerified, role: user.role } });
   });
 
@@ -143,11 +187,21 @@ async function startServer() {
     const db = getDb();
     const user = db.users.find(u => u.id === req.session.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json({ id: user.id, fullName: user.fullName, email: user.email, isVerified: user.isVerified, role: user.role });
+    res.json({ 
+      id: user.id, 
+      fullName: user.fullName, 
+      email: user.email, 
+      phone: user.phone,
+      avatar: user.avatar,
+      isVerified: user.isVerified, 
+      role: user.role 
+    });
   });
 
-  app.post('/api/logout', (req, res) => {
+  app.post('/api/logout', (req: any, res) => {
+    const userId = req.session.userId;
     req.session.destroy(() => {
+      if (userId) logActivity(userId, 'LOGOUT', 'User logged out', req);
       res.json({ message: 'Logged out' });
     });
   });
@@ -181,8 +235,133 @@ async function startServer() {
     user.password = hashedPassword;
     delete user.resetToken;
     saveDb(db);
-
+    logActivity(user.id, 'RESET_PASSWORD', 'Password reset via token', req);
     res.json({ message: 'Password has been reset successfully.' });
+  });
+
+  // --- Profile Routes ---
+  app.post('/api/profile', requireAuth, async (req: any, res) => {
+    const { fullName, phone, avatar } = req.body;
+    const db = getDb();
+    const user = db.users.find(u => u.id === req.session.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (fullName) user.fullName = fullName;
+    if (phone !== undefined) user.phone = phone;
+    if (avatar !== undefined) user.avatar = avatar;
+    
+    saveDb(db);
+    logActivity(user.id, 'UPDATE_PROFILE', 'Profile updated', req);
+    res.json({ message: 'Profile updated successfully', user: { id: user.id, fullName: user.fullName, email: user.email, phone: user.phone, avatar: user.avatar, isVerified: user.isVerified, role: user.role } });
+  });
+
+  app.post('/api/update-email', requireAuth, async (req: any, res) => {
+    const { email } = req.body;
+    const db = getDb();
+    const user = db.users.find(u => u.id === req.session.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (db.users.find(u => u.email === email && u.id !== user.id)) {
+      return res.status(400).json({ error: 'Email already in use' });
+    }
+
+    const verificationToken = uuidv4();
+    user.email = email;
+    user.isVerified = false;
+    user.verificationToken = verificationToken;
+    saveDb(db);
+
+    logActivity(user.id, 'UPDATE_EMAIL', `Email changed to ${email}, verification required`, req);
+    
+    try {
+      await sendVerificationEmail(email, verificationToken);
+    } catch (e) {
+      console.error('Failed to send verification email', e);
+    }
+
+    res.json({ message: 'Email updated. Please verify your new email address.' });
+  });
+
+  app.post('/api/update-password', requireAuth, async (req: any, res) => {
+    const { currentPassword, newPassword } = req.body;
+    const db = getDb();
+    const user = db.users.find(u => u.id === req.session.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (!(await bcrypt.compare(currentPassword, user.password))) {
+      return res.status(400).json({ error: 'Current password incorrect' });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    saveDb(db);
+    logActivity(user.id, 'UPDATE_PASSWORD', 'Password updated', req);
+    res.json({ message: 'Password updated successfully' });
+  });
+
+  // --- Admin Routes ---
+  app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
+    const db = getDb();
+    res.json(db.users.map(u => {
+      const { password, ...rest } = u;
+      return rest;
+    }));
+  });
+
+  app.get('/api/admin/logs', requireAuth, requireAdmin, (req, res) => {
+    const db = getDb();
+    res.json(db.logs.slice().reverse());
+  });
+
+  app.post('/api/admin/clear-logs', requireAuth, requireAdmin, (req: any, res) => {
+    const db = getDb();
+    db.logs = [];
+    saveDb(db);
+    logActivity(req.session.userId, 'CLEAR_LOGS', 'Admin cleared all logs', req);
+    res.json({ message: 'Logs cleared' });
+  });
+
+  app.post('/api/admin/user/:id/reset-password', requireAuth, requireAdmin, async (req: any, res) => {
+    const db = getDb();
+    const user = db.users.find(u => u.id === req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const newPassword = Math.random().toString(36).slice(-8);
+    user.password = await bcrypt.hash(newPassword, 10);
+    saveDb(db);
+    logActivity(req.session.userId, 'ADMIN_RESET_PASSWORD', `Admin reset password for ${user.email}`, req);
+    res.json({ message: `Password reset to: ${newPassword}`, temporaryPassword: newPassword });
+  });
+
+  app.post('/api/admin/user/:id/update', requireAuth, requireAdmin, (req: any, res) => {
+    const db = getDb();
+    const user = db.users.find(u => u.id === req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const { fullName, role, isVerified } = req.body;
+    if (fullName) user.fullName = fullName;
+    if (role) user.role = role;
+    if (isVerified !== undefined) user.isVerified = isVerified;
+
+    saveDb(db);
+    logActivity(req.session.userId, 'ADMIN_UPDATE_USER', `Admin updated user ${user.email}`, req);
+    res.json({ message: 'User updated successfully' });
+  });
+
+  app.delete('/api/admin/user/:id', requireAuth, requireAdmin, (req: any, res) => {
+    const db = getDb();
+    const userIndex = db.users.findIndex(u => u.id === req.params.id);
+    if (userIndex === -1) return res.status(404).json({ error: 'User not found' });
+
+    const user = db.users[userIndex];
+    db.users.splice(userIndex, 1);
+    // Clean up user data
+    db.cards = db.cards.filter(c => c.userId !== req.params.id);
+    db.transactions = db.transactions.filter(t => t.userId !== req.params.id);
+    db.parties = db.parties.filter(p => p.userId !== req.params.id);
+    
+    saveDb(db);
+    logActivity(req.session.userId, 'ADMIN_DELETE_USER', `Admin deleted user ${user.email}`, req);
+    res.json({ message: 'User and all associated data deleted' });
   });
 
   // --- Party Routes ---

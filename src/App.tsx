@@ -24,6 +24,10 @@ import {
   ChevronRight,
   Download,
   Filter,
+  Key,
+  Shield,
+  Lock,
+  Activity,
   TrendingUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -330,7 +334,361 @@ const Register = () => {
   );
 };
 
+const ConfirmModal = ({ title, message, onConfirm, onCancel, confirmText = 'Confirm', confirmVariant = 'primary' }: any) => (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <motion.div 
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl text-center"
+    >
+      <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+        <AlertCircle size={32} />
+      </div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
+      <p className="text-gray-500 mb-8">{message}</p>
+      <div className="flex gap-3">
+        <Button variant="secondary" className="flex-1 py-3 rounded-2xl" onClick={onCancel}>Cancel</Button>
+        <Button variant={confirmVariant} className="flex-1 py-3 rounded-2xl" onClick={onConfirm}>{confirmText}</Button>
+      </div>
+    </motion.div>
+  </div>
+);
+
+const ProfileSection = ({ user, setUser }: any) => {
+  const [fullName, setFullName] = useState(user.fullName);
+  const [phone, setPhone] = useState(user.phone || '');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const res = await fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fullName, phone })
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setUser(updated);
+      toast.success('Profile updated');
+    }
+    setLoading(false);
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const res = await fetch('/api/update-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    if (res.ok) {
+      toast.success('Password updated');
+      setCurrentPassword('');
+      setNewPassword('');
+    } else {
+      const data = await res.json();
+      toast.error(data.error || 'Failed to update password');
+    }
+    setLoading(false);
+  };
+
+  const handleUpdateEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const res = await fetch('/api/user/change-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newEmail })
+    });
+    if (res.ok) {
+      toast.success('Verification email sent to new address');
+      setNewEmail('');
+    } else {
+      const data = await res.json();
+      toast.error(data.error || 'Failed to update email');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+          <h2 className="text-2xl font-bold mb-6">Profile Settings</h2>
+          <form onSubmit={handleUpdateProfile} className="space-y-4">
+            <Input label="Full Name" value={fullName} onChange={(e: any) => setFullName(e.target.value)} required />
+            <Input label="Phone Number" value={phone} onChange={(e: any) => setPhone(e.target.value)} />
+            <Button className="w-full py-3" disabled={loading}>Save Changes</Button>
+          </form>
+        </div>
+
+        <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+          <h2 className="text-2xl font-bold mb-6">Security</h2>
+          <form onSubmit={handleUpdatePassword} className="space-y-4">
+            <Input label="Current Password" type="password" value={currentPassword} onChange={(e: any) => setCurrentPassword(e.target.value)} required />
+            <Input label="New Password" type="password" value={newPassword} onChange={(e: any) => setNewPassword(e.target.value)} required />
+            <Button variant="secondary" className="w-full py-3" disabled={loading}>Update Password</Button>
+          </form>
+        </div>
+      </div>
+
+      <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm max-w-2xl">
+        <h2 className="text-2xl font-bold mb-2">Change Email</h2>
+        <p className="text-gray-500 mb-6 text-sm">Current: {user.email}. You will need to verify the new email address.</p>
+        <form onSubmit={handleUpdateEmail} className="flex gap-4">
+          <div className="flex-1">
+            <Input label="New Email Address" type="email" value={newEmail} onChange={(e: any) => setNewEmail(e.target.value)} required />
+          </div>
+          <Button variant="secondary" className="mt-7 px-8" disabled={loading}>Update</Button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const AdminSection = ({ setConfirmAction }: any) => {
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<'users' | 'logs'>('users');
+
+  const fetchData = async () => {
+    setLoading(true);
+    const [uRes, lRes] = await Promise.all([
+      fetch('/api/admin/users'),
+      fetch('/api/admin/logs')
+    ]);
+    if (uRes.ok) setUsers(await uRes.json());
+    if (lRes.ok) setLogs(await lRes.json());
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleResetPassword = async (userId: string) => {
+    setConfirmAction({
+      title: 'Reset Password',
+      message: 'This will generate a temporary password for the user. Continue?',
+      onConfirm: async () => {
+        const res = await fetch(`/api/admin/user/${userId}/reset-password`, { method: 'POST' });
+        if (res.ok) {
+          const { tempPassword } = await res.json();
+          toast.success(`Temporary password: ${tempPassword}`, { duration: 10000 });
+        }
+      }
+    });
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    setConfirmAction({
+      title: 'Delete User',
+      message: 'This action is permanent and will delete all user data. Continue?',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        const res = await fetch(`/api/admin/user/${userId}`, { method: 'DELETE' });
+        if (res.ok) {
+          toast.success('User deleted');
+          fetchData();
+        }
+      }
+    });
+  };
+
+  const handleClearLogs = async () => {
+    setConfirmAction({
+      title: 'Clear Logs',
+      message: 'Are you sure you want to delete all activity logs?',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        const res = await fetch('/api/admin/clear-logs', { method: 'POST' });
+        if (res.ok) {
+          toast.success('Logs cleared');
+          fetchData();
+        }
+      }
+    });
+  };
+
+  if (loading) return <div className="p-12 text-center text-gray-500">Loading admin data...</div>;
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2 bg-gray-100 p-1 rounded-2xl">
+          <button 
+            onClick={() => setView('users')}
+            className={cn("px-6 py-2 rounded-xl text-sm font-bold transition-all", view === 'users' ? "bg-white text-primary shadow-sm" : "text-gray-500")}
+          >
+            Users
+          </button>
+          <button 
+            onClick={() => setView('logs')}
+            className={cn("px-6 py-2 rounded-xl text-sm font-bold transition-all", view === 'logs' ? "bg-white text-primary shadow-sm" : "text-gray-500")}
+          >
+            Activity Logs
+          </button>
+        </div>
+        {view === 'logs' && (
+          <Button variant="danger" className="py-2 px-6" onClick={handleClearLogs}>Clear Logs</Button>
+        )}
+      </div>
+
+      {view === 'users' ? (
+        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-gray-50/50 border-b border-gray-100">
+                <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">User</th>
+                <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Email</th>
+                <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Role</th>
+                <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {users.map(u => (
+                <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-8 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                        {u.fullName[0]}
+                      </div>
+                      <span className="font-bold">{u.fullName}</span>
+                    </div>
+                  </td>
+                  <td className="px-8 py-4 text-gray-500">{u.email}</td>
+                  <td className="px-8 py-4">
+                    <span className={cn(
+                      "px-3 py-1 rounded-full text-xs font-bold",
+                      u.role === 'admin' ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"
+                    )}>
+                      {u.role.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-8 py-4">
+                    <span className={cn(
+                      "flex items-center gap-1.5 text-xs font-bold",
+                      u.isVerified ? "text-emerald-600" : "text-rose-600"
+                    )}>
+                      <div className={cn("w-1.5 h-1.5 rounded-full", u.isVerified ? "bg-emerald-600" : "bg-rose-600")} />
+                      {u.isVerified ? 'Verified' : 'Unverified'}
+                    </span>
+                  </td>
+                  <td className="px-8 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => handleResetPassword(u.id)} className="p-2 hover:bg-amber-50 text-amber-600 rounded-xl transition-colors" title="Reset Password">
+                        <Key size={18} />
+                      </button>
+                      <button onClick={() => handleDeleteUser(u.id)} className="p-2 hover:bg-rose-50 text-rose-600 rounded-xl transition-colors" title="Delete Account">
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+          <div className="divide-y divide-gray-100">
+            {logs.map((log, i) => (
+              <div key={i} className="px-8 py-4 hover:bg-gray-50/50 transition-colors flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "w-10 h-10 rounded-xl flex items-center justify-center",
+                    log.type === 'admin' ? "bg-amber-100 text-amber-600" : 
+                    log.type === 'auth' ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"
+                  )}>
+                    {log.type === 'admin' ? <Shield size={20} /> : 
+                     log.type === 'auth' ? <Lock size={20} /> : <Activity size={20} />}
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm">{log.action}</p>
+                    <p className="text-xs text-gray-500">
+                      {log.userEmail} • {log.ip} • {format(new Date(log.timestamp), 'dd MMM HH:mm:ss')}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-xs font-mono text-gray-400">
+                  {log.details && JSON.stringify(log.details)}
+                </div>
+              </div>
+            ))}
+            {logs.length === 0 && (
+              <div className="p-12 text-center text-gray-400">No activity logs found</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CreditCardUI = ({ card, transactions, onClick }: { card: Card, transactions: Transaction[], onClick: () => void, key?: any }) => {
+  const [showFullNumber, setShowFullNumber] = useState(false);
+  const cardUsed = transactions.reduce((sum, t) => sum + t.amount, 0);
+  const percent = Math.min((cardUsed / card.limit) * 100, 100);
+
+  return (
+    <motion.div 
+      layoutId={card.id}
+      onClick={onClick}
+      className={cn(
+        "relative overflow-hidden p-8 rounded-[2.5rem] text-white cursor-pointer shadow-2xl transition-all hover:scale-[1.02] hover:shadow-primary/20",
+        card.theme || "bg-primary"
+      )}
+    >
+      <div className="flex justify-between items-start mb-8">
+        <div>
+          <p className="text-xs opacity-70 uppercase tracking-wider">{card.cardType}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-lg font-bold">
+              {showFullNumber ? card.cardNumber : `•••• •••• •••• ${card.cardNumber.slice(-4)}`}
+            </p>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setShowFullNumber(!showFullNumber); }} 
+              className="p-1 hover:bg-white/20 rounded-lg"
+            >
+              {showFullNumber ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+        </div>
+        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
+          <CreditCard className="w-6 h-6" />
+        </div>
+      </div>
+      
+      <div className="space-y-4">
+        <div className="flex justify-between text-sm">
+          <span>Used: {formatCurrency(cardUsed)}</span>
+          <span>Limit: {formatCurrency(card.limit)}</span>
+        </div>
+        <div className="h-3 bg-white/20 rounded-full overflow-hidden">
+          <motion.div 
+            initial={{ width: 0 }}
+            animate={{ width: `${percent}%` }}
+            className="h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]"
+          />
+        </div>
+        <div className="flex justify-between items-end">
+          <p className="font-medium">{card.cardholderName}</p>
+          <p className="text-sm opacity-70">{card.expiryDate}</p>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | null) => void }) => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'admin' | 'profile'>('overview');
   const [cards, setCards] = useState<Card[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [parties, setParties] = useState<Party[]>([]);
@@ -340,6 +698,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
   const [showAddParty, setShowAddParty] = useState(false);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<any>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const verified = searchParams.get('verified');
@@ -397,6 +756,9 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
   };
 
   useEffect(() => {
+    if (verified === 'true') {
+      checkVerificationStatus();
+    }
     fetchData();
     
     // Auto-refresh user data if not verified to catch verification from another tab
@@ -411,13 +773,13 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
             toast.success('Email verified!');
           }
         }
-      }, 10000);
+      }, 5000); // Faster refresh for better UX
     }
     
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, []);
+  }, [verified]);
 
   const totalLimit = cards.reduce((sum, c) => sum + c.limit, 0);
   const totalUsed = transactions.reduce((sum, t) => sum + t.amount, 0);
@@ -502,6 +864,28 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
             <span className="font-bold text-xl tracking-tight text-primary hidden sm:block">CardSwipe</span>
           </div>
           <div className="flex items-center gap-4">
+            <nav className="hidden md:flex items-center gap-1 bg-gray-50 p-1 rounded-2xl">
+              <button 
+                onClick={() => setActiveTab('overview')}
+                className={cn("px-4 py-2 rounded-xl text-sm font-bold transition-all", activeTab === 'overview' ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-700")}
+              >
+                Overview
+              </button>
+              {user.role === 'admin' && (
+                <button 
+                  onClick={() => setActiveTab('admin')}
+                  className={cn("px-4 py-2 rounded-xl text-sm font-bold transition-all", activeTab === 'admin' ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-700")}
+                >
+                  Admin
+                </button>
+              )}
+              <button 
+                onClick={() => setActiveTab('profile')}
+                className={cn("px-4 py-2 rounded-xl text-sm font-bold transition-all", activeTab === 'profile' ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-700")}
+              >
+                Profile
+              </button>
+            </nav>
             <div className="text-right hidden sm:block">
               <p className="text-sm font-medium">{user.fullName}</p>
               <p className="text-xs text-gray-500 capitalize">{user.role}</p>
@@ -516,285 +900,252 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            { label: 'Total Cards', value: cards.length, icon: CreditCard, color: 'primary' },
-            { label: 'Total Limit', value: formatCurrency(totalLimit), icon: ArrowUpRight, color: 'emerald' },
-            { label: 'Total Used', value: formatCurrency(totalUsed), icon: ArrowDownLeft, color: 'rose' },
-            { label: 'Recoverable', value: formatCurrency(recoverable), icon: Users, color: 'amber' },
-          ].map((stat, i) => (
-            <motion.div 
-              key={i}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className={cn(
-                "w-12 h-12 rounded-2xl flex items-center justify-center mb-4", 
-                stat.color === 'primary' ? "bg-primary/10 text-primary" : `bg-${stat.color}-50 text-${stat.color}-600`
-              )}>
-                <stat.icon className="w-6 h-6" />
-              </div>
-              <p className="text-sm font-medium text-gray-500">{stat.label}</p>
-              <p className="text-2xl font-bold mt-1 text-gray-900">{stat.value}</p>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">Spending Overview</h3>
-                <p className="text-sm text-gray-500">Last 7 days activity</p>
-              </div>
-              <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full text-xs font-bold">
-                <TrendingUp className="w-3 h-3" />
-                <span>Live</span>
-              </div>
-            </div>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={spendingData}>
-                  <defs>
-                    <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0F172B" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#0F172B" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                  <XAxis 
-                    dataKey="date" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 12, fill: '#9CA3AF' }}
-                    dy={10}
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 12, fill: '#9CA3AF' }}
-                    tickFormatter={(value) => `₹${value}`}
-                  />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: number) => [formatCurrency(value), 'Amount']}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="amount" 
-                    stroke="#0F172B" 
-                    strokeWidth={3}
-                    fillOpacity={1} 
-                    fill="url(#colorAmount)" 
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">Spending by Category</h3>
-            <div className="h-[250px] w-full relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={8}
-                    dataKey="value"
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: number) => [formatCurrency(value), 'Total']}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <p className="text-xs text-gray-500 font-medium">Total Spent</p>
-                <p className="text-lg font-bold text-gray-900">{formatCurrency(totalUsed)}</p>
-              </div>
-            </div>
-            <div className="mt-6 space-y-3">
-              {categoryData.map((item, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                    <span className="text-sm font-medium text-gray-600">{item.name}</span>
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        {activeTab === 'overview' ? (
+          <div className="space-y-12">
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                { label: 'Total Cards', value: cards.length, icon: CreditCard, color: 'primary' },
+                { label: 'Total Limit', value: formatCurrency(totalLimit), icon: ArrowUpRight, color: 'emerald' },
+                { label: 'Total Used', value: formatCurrency(totalUsed), icon: ArrowDownLeft, color: 'rose' },
+                { label: 'Recoverable', value: formatCurrency(recoverable), icon: Users, color: 'amber' },
+              ].map((stat, i) => (
+                <motion.div 
+                  key={i}
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: i * 0.1 }}
+                  className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "w-12 h-12 rounded-2xl flex items-center justify-center",
+                      stat.color === 'primary' ? "bg-primary/10 text-primary" :
+                      stat.color === 'emerald' ? "bg-emerald-100 text-emerald-600" :
+                      stat.color === 'rose' ? "bg-rose-100 text-rose-600" : "bg-amber-100 text-amber-600"
+                    )}>
+                      <stat.icon size={24} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{stat.label}</p>
+                      <p className="text-xl font-bold text-gray-900">{stat.value}</p>
+                    </div>
                   </div>
-                  <span className="text-sm font-bold text-gray-900">{formatCurrency(item.value)}</span>
-                </div>
+                </motion.div>
               ))}
             </div>
-          </div>
-        </div>
 
-        {/* Cards Section */}
-        <section>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold">Your Cards</h2>
-            <Button onClick={() => setShowAddCard(true)} className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white rounded-2xl px-6 py-2.5 h-auto">
-              <Plus className="w-4 h-4" /> Add Card
-            </Button>
-          </div>
-          
-          {cards.length === 0 ? (
-            <div className="bg-white border-2 border-dashed border-gray-200 rounded-3xl p-12 text-center">
-              <CreditCard className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No cards added yet. Start by adding your first card.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {cards.map((card) => {
-                const cardUsed = transactions.filter(t => t.cardId === card.id).reduce((sum, t) => sum + t.amount, 0);
-                const percent = Math.min((cardUsed / card.limit) * 100, 100);
-                
-                return (
-                  <motion.div 
-                    key={card.id}
-                    layoutId={card.id}
-                    onClick={() => setSelectedCard(card)}
-                    className={cn(
-                      "relative overflow-hidden p-8 rounded-[2.5rem] text-white cursor-pointer shadow-2xl transition-all hover:scale-[1.02] hover:shadow-primary/20",
-                      card.theme || "bg-primary"
-                    )}
-                  >
-                    <div className="flex justify-between items-start mb-8">
-                      <div>
-                        <p className="text-xs opacity-70 uppercase tracking-wider">{card.cardType}</p>
-                        <p className="text-lg font-bold mt-1">•••• •••• •••• {card.cardNumber.slice(-4)}</p>
-                      </div>
-                      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
-                        <CreditCard className="w-6 h-6" />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div className="flex justify-between text-sm">
-                        <span>Used: {formatCurrency(cardUsed)}</span>
-                        <span>Limit: {formatCurrency(card.limit)}</span>
-                      </div>
-                      <div className="h-3 bg-white/20 rounded-full overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${percent}%` }}
-                          className="h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]"
-                        />
-                      </div>
-                      <div className="flex justify-between items-end">
-                        <p className="font-medium">{card.cardholderName}</p>
-                        <p className="text-sm opacity-70">{card.expiryDate}</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* Quick Actions & Reminders */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <div className="md:col-span-1 lg:col-span-2 space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">Recent Transactions</h2>
-              <Button variant="secondary" onClick={() => setShowAddTransaction(true)} className="rounded-2xl px-6 py-2 h-auto">Add Transaction</Button>
-            </div>
-            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden min-h-[200px] flex flex-col">
-              <div className="divide-y divide-gray-50 flex-1">
-                {transactions.slice(0, 5).map((t) => (
-                  <div key={t.id} className={cn(
-                    "p-4 flex items-center justify-between hover:bg-gray-50 transition-colors border-l-4",
-                    t.partyType === 'self' ? "border-blue-500" : 
-                    t.partyType === 'individual' ? "border-emerald-500" : "border-orange-500"
-                  )}>
-                    <div className="flex items-center gap-4">
-                      <div className={cn(
-                        "w-10 h-10 rounded-xl flex items-center justify-center",
-                        t.partyType === 'self' ? "bg-blue-50 text-blue-600" : 
-                        t.partyType === 'individual' ? "bg-emerald-50 text-emerald-600" : "bg-orange-50 text-orange-600"
-                      )}>
-                        {t.partyType === 'self' ? <User className="w-5 h-5" /> : 
-                         t.partyType === 'individual' ? <Users className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
-                      </div>
-                      <div>
-                        <p className="font-medium">{t.partyName}</p>
-                        <p className="text-xs text-gray-500">{format(new Date(t.date), 'dd MMM yyyy')}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold">{formatCurrency(t.amount)}</p>
-                      <p className={cn("text-xs font-medium", t.isPaid ? "text-emerald-600" : "text-amber-600")}>
-                        {t.isPaid ? 'Paid' : 'Pending'}
-                      </p>
-                    </div>
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+                <h3 className="text-xl font-bold mb-6">Spending Analysis</h3>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={spendingData}>
+                      <defs>
+                        <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#0F172B" stopOpacity={0.1}/>
+                          <stop offset="95%" stopColor="#0F172B" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94A3B8' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94A3B8' }} tickFormatter={(v) => `₹${v}`} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                        formatter={(v: any) => [formatCurrency(v), 'Amount']}
+                      />
+                      <Area type="monotone" dataKey="amount" stroke="#0F172B" strokeWidth={3} fillOpacity={1} fill="url(#colorAmount)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+                <h3 className="text-xl font-bold mb-6">Distribution</h3>
+                <div className="h-[300px] w-full relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={8}
+                        dataKey="value"
+                      >
+                        {categoryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: any) => formatCurrency(v)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Spent</p>
+                    <p className="text-lg font-bold text-gray-900">{formatCurrency(totalUsed)}</p>
                   </div>
+                </div>
+                <div className="mt-6 space-y-3">
+                  {categoryData.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                        <span className="text-sm font-medium text-gray-600">{item.name}</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">{formatCurrency(item.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Cards Section */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">My Cards</h2>
+                <Button onClick={() => setShowAddCard(true)} className="rounded-2xl px-6 py-2 h-auto">Add New Card</Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {cards.map(card => (
+                  <CreditCardUI 
+                    key={card.id} 
+                    card={card} 
+                    transactions={transactions.filter(t => t.cardId === card.id)}
+                    onClick={() => setSelectedCard(card)}
+                  />
                 ))}
-                {transactions.length === 0 && (
-                  <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-gray-400">
-                    <Clock className="w-12 h-12 mb-4 opacity-20" />
-                    <p>No recent transactions</p>
+                {cards.length === 0 && (
+                  <div className="col-span-full py-20 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-gray-100">
+                    <CreditCard className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-gray-500">No cards added yet. Start by adding your first card.</p>
                   </div>
                 )}
               </div>
             </div>
-          </div>
 
-          <div className="space-y-6">
-            <h2 className="text-xl font-bold">Upcoming Dues</h2>
-            <div className="space-y-4 min-h-[200px]">
-              {cards.filter(card => {
-                const today = new Date();
-                const dueThisMonth = new Date(today.getFullYear(), today.getMonth(), card.dueDate);
-                const diff = differenceInDays(dueThisMonth, today);
-                return diff >= 0;
-              }).length === 0 ? (
-                <div className="bg-white p-12 rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center text-gray-400 h-full">
-                  <Calendar className="w-12 h-12 mb-4 opacity-20" />
-                  <p>No upcoming dues</p>
+            {/* Quick Actions & Reminders */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold">Recent Transactions</h2>
+                  <Button variant="secondary" onClick={() => setShowAddTransaction(true)} className="rounded-2xl px-6 py-2 h-auto">Add Transaction</Button>
                 </div>
-              ) : (
-                cards.map(card => {
-                  const today = new Date();
-                  const dueThisMonth = new Date(today.getFullYear(), today.getMonth(), card.dueDate);
-                  const diff = differenceInDays(dueThisMonth, today);
-                  if (diff < 0) return null;
-                  
-                  return (
-                    <div key={card.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-                      <div className={cn(
-                        "w-12 h-12 rounded-xl flex flex-col items-center justify-center text-white",
-                        diff < 3 ? "bg-rose-500" : diff < 7 ? "bg-amber-500" : "bg-emerald-500"
-                      )}>
-                        <span className="text-xs font-bold uppercase">{format(dueThisMonth, 'MMM')}</span>
-                        <span className="text-lg font-bold leading-none">{card.dueDate}</span>
+                <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden min-h-[400px] flex flex-col">
+                  <div className="flex-1 overflow-y-auto">
+                    {transactions.slice(0, 10).map((t) => (
+                      <div key={t.id} className="px-8 py-4 hover:bg-gray-50/50 transition-colors flex items-center justify-between border-b border-gray-50 last:border-0">
+                        <div className="flex items-center gap-4">
+                          <div className={cn(
+                            "w-12 h-12 rounded-2xl flex items-center justify-center",
+                            t.partyType === 'self' ? "bg-blue-50 text-blue-600" : 
+                            t.partyType === 'individual' ? "bg-emerald-50 text-emerald-600" : "bg-orange-50 text-orange-600"
+                          )}>
+                            {t.partyType === 'self' ? <User size={24} /> : 
+                             t.partyType === 'individual' ? <Users size={24} /> : <Building2 size={24} />}
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900">{t.partyName}</p>
+                            <p className="text-xs text-gray-500">{format(new Date(t.date), 'dd MMM yyyy')} • {t.paymentMode.toUpperCase()}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-gray-900">{formatCurrency(t.amount)}</p>
+                          <p className={cn("text-xs font-bold", t.isPaid ? "text-emerald-600" : "text-amber-600")}>
+                            {t.isPaid ? 'Settled' : 'Pending'}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold text-sm">{card.cardType} Bill</p>
-                        <p className="text-xs text-gray-500">{diff} days remaining</p>
+                    ))}
+                    {transactions.length === 0 && (
+                      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-gray-400 h-full">
+                        <Clock className="w-12 h-12 mb-4 opacity-20" />
+                        <p>No recent transactions</p>
                       </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold">Upcoming Dues</h2>
+                <div className="space-y-4">
+                  {cards.filter(card => {
+                    const today = new Date();
+                    const dueThisMonth = new Date(today.getFullYear(), today.getMonth(), card.dueDate);
+                    const diff = differenceInDays(dueThisMonth, today);
+                    return diff >= 0;
+                  }).length === 0 ? (
+                    <div className="bg-white p-12 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center text-gray-400 min-h-[400px]">
+                      <Calendar className="w-12 h-12 mb-4 opacity-20" />
+                      <p>No upcoming dues</p>
                     </div>
-                  );
-                })
-              )}
+                  ) : (
+                    cards.map(card => {
+                      const today = new Date();
+                      const dueThisMonth = new Date(today.getFullYear(), today.getMonth(), card.dueDate);
+                      const diff = differenceInDays(dueThisMonth, today);
+                      if (diff < 0) return null;
+                      
+                      return (
+                        <div key={card.id} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                          <div className={cn(
+                            "w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white",
+                            diff < 3 ? "bg-rose-500" : diff < 7 ? "bg-amber-500" : "bg-emerald-500"
+                          )}>
+                            <span className="text-[10px] font-bold uppercase opacity-80">{format(dueThisMonth, 'MMM')}</span>
+                            <span className="text-xl font-bold leading-none">{card.dueDate}</span>
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900">{card.cardType} Bill</p>
+                            <p className={cn(
+                              "text-xs font-bold",
+                              diff < 3 ? "text-rose-600" : diff < 7 ? "text-amber-600" : "text-emerald-600"
+                            )}>
+                              {diff === 0 ? 'Due Today' : `${diff} days remaining`}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        ) : activeTab === 'admin' ? (
+          <AdminSection setConfirmAction={setConfirmAction} />
+        ) : (
+          <ProfileSection user={user} setUser={setUser} />
+        )}
       </main>
+
+      <footer className="max-w-7xl mx-auto px-4 py-12 border-t border-gray-100">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-2">
+            <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="CardSwipe Logo" className="w-6 h-6" referrerPolicy="no-referrer" />
+            <span className="font-bold text-lg text-primary">CardSwipe</span>
+          </div>
+          <p className="text-sm text-gray-500">
+            A product by <a href="https://www.conzex.com" target="_blank" rel="noopener noreferrer" className="font-bold bg-gradient-to-r from-[#0F172B] to-[#3577F0] bg-clip-text text-transparent hover:opacity-80 transition-opacity">Conzex Global Private Limited</a>
+          </p>
+          <p className="text-xs text-gray-400">© 2026 CardSwipe. All rights reserved.</p>
+        </div>
+      </footer>
 
       {/* Modals */}
       <AnimatePresence>
+        {confirmAction && (
+          <ConfirmModal 
+            {...confirmAction} 
+            onCancel={() => setConfirmAction(null)} 
+            onConfirm={() => {
+              confirmAction.onConfirm();
+              setConfirmAction(null);
+            }} 
+          />
+        )}
         {showAddCard && (
           <AddCardModal onClose={() => setShowAddCard(false)} onAdd={fetchData} />
         )}

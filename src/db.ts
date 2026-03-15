@@ -7,11 +7,15 @@ export interface User {
   id: string;
   fullName: string;
   email: string;
+  phone?: string;
+  avatar?: string;
   password: string;
   isVerified: boolean;
   verificationToken?: string;
+  pendingEmail?: string;
   resetToken?: string;
   role: 'admin' | 'user';
+  createdAt?: string;
 }
 
 export interface Card {
@@ -59,18 +63,30 @@ export interface Party {
   createdAt: string;
 }
 
+export interface Log {
+  id: string;
+  userId: string;
+  userEmail: string;
+  action: string;
+  details: string;
+  ip?: string;
+  timestamp: string;
+}
+
 export interface DatabaseSchema {
   users: User[];
   cards: Card[];
   transactions: Transaction[];
   parties: Party[];
+  logs: Log[];
 }
 
 const defaultData: DatabaseSchema = {
   users: [],
   cards: [],
   transactions: [],
-  parties: []
+  parties: [],
+  logs: []
 };
 
 const DB_PATH = path.join(process.cwd(), 'data', 'db.json');
