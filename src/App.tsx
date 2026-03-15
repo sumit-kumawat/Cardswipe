@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  PieChart, Pie, Cell, AreaChart, Area 
+} from 'recharts';
+import { 
   CreditCard, 
   Plus, 
   ArrowUpRight, 
@@ -19,7 +23,8 @@ import {
   AlertCircle,
   ChevronRight,
   Download,
-  Filter
+  Filter,
+  TrendingUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -83,7 +88,7 @@ interface Party {
 
 const Button = ({ className, variant = 'primary', ...props }: any) => {
   const variants: any = {
-    primary: 'bg-indigo-600 text-white hover:bg-indigo-700',
+    primary: 'bg-primary text-white hover:bg-primary/90',
     secondary: 'bg-white text-gray-900 border border-gray-200 hover:bg-gray-50',
     danger: 'bg-red-600 text-white hover:bg-red-700',
     ghost: 'bg-transparent hover:bg-gray-100 text-gray-600',
@@ -101,7 +106,7 @@ const Input = ({ label, error, ...props }: any) => (
     {label && <label className="text-sm font-medium text-gray-700">{label}</label>}
     <input 
       className={cn(
-        "w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all",
+        "w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all",
         error && "border-red-500 ring-red-200"
       )} 
       {...props} 
@@ -203,17 +208,15 @@ const Login = ({ onLogin }: any) => {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-gray-100"
+        className="max-w-md w-full bg-white p-10 rounded-[2.5rem] shadow-2xl text-center border border-gray-100"
       >
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200">
-            <CreditCard className="text-white w-8 h-8" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">CardSwipe</h1>
-          <p className="text-gray-500 mt-2">Manage your cards and lending securely</p>
+        <div className="mb-8 flex justify-center">
+          <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="CardSwipe Logo" className="w-16 h-16" referrerPolicy="no-referrer" />
         </div>
+        <h1 className="text-3xl font-bold text-primary tracking-tight">Welcome Back</h1>
+        <p className="text-gray-500 mt-2 mb-8">Sign in to manage your credit cards</p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 text-left">
           <Input 
             label="Email Address" 
             type="text" 
@@ -237,7 +240,7 @@ const Login = ({ onLogin }: any) => {
             <button 
               type="button"
               onClick={() => setShowForgot(true)}
-              className="text-sm text-indigo-600 font-medium hover:underline"
+              className="text-sm text-primary font-medium hover:underline"
             >
               Forgot Password?
             </button>
@@ -245,7 +248,7 @@ const Login = ({ onLogin }: any) => {
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-6">
-          Don't have an account? <Link to="/register" className="text-indigo-600 font-medium hover:underline">Register now</Link>
+          Don't have an account? <Link to="/register" className="text-primary font-medium hover:underline">Register now</Link>
         </p>
       </motion.div>
     </div>
@@ -285,14 +288,15 @@ const Register = () => {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-gray-100"
+        className="max-w-md w-full bg-white p-10 rounded-[2.5rem] shadow-2xl text-center border border-gray-100"
       >
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
-          <p className="text-gray-500 mt-2">Join us to manage your cards better</p>
+        <div className="mb-8 flex justify-center">
+          <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="CardSwipe Logo" className="w-16 h-16" referrerPolicy="no-referrer" />
         </div>
+        <h1 className="text-3xl font-bold text-primary tracking-tight">Create Account</h1>
+        <p className="text-gray-500 mt-2 mb-8">Start managing your cards professionally</p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 text-left">
           <Input 
             label="Full Name" 
             value={form.fullName}
@@ -319,7 +323,7 @@ const Register = () => {
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-6">
-          Already have an account? <Link to="/login" className="text-indigo-600 font-medium hover:underline">Sign in</Link>
+          Already have an account? <Link to="/login" className="text-primary font-medium hover:underline">Sign in</Link>
         </p>
       </motion.div>
     </div>
@@ -419,20 +423,53 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
   const totalUsed = transactions.reduce((sum, t) => sum + t.amount, 0);
   const recoverable = transactions.filter(t => t.partyType !== 'self' && !t.isPaid).reduce((sum, t) => sum + t.amount, 0);
 
+  // Prepare chart data
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    return format(d, 'yyyy-MM-dd');
+  }).reverse();
+
+  const spendingData = last7Days.map(date => {
+    const dayTotal = transactions
+      .filter(t => format(new Date(t.date), 'yyyy-MM-dd') === date)
+      .reduce((sum, t) => sum + t.amount, 0);
+    return {
+      date: format(new Date(date), 'dd MMM'),
+      amount: dayTotal
+    };
+  });
+
+  const categoryData = [
+    { name: 'Self', value: transactions.filter(t => t.partyType === 'self').reduce((sum, t) => sum + t.amount, 0), color: '#0F172B' },
+    { name: 'Individual', value: transactions.filter(t => t.partyType === 'individual').reduce((sum, t) => sum + t.amount, 0), color: '#10B981' },
+    { name: 'Business', value: transactions.filter(t => t.partyType === 'business').reduce((sum, t) => sum + t.amount, 0), color: '#F59E0B' },
+  ].filter(d => d.value > 0);
+
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
 
   if (!user.isVerified && user.role !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl text-center">
-          <AlertCircle className="w-16 h-16 text-amber-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold">Verify Your Email</h1>
+        <div className="max-w-md w-full bg-white p-10 rounded-[2.5rem] shadow-2xl text-center border border-gray-100">
+          <div className="mb-6 flex justify-center">
+            <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="CardSwipe Logo" className="w-16 h-16" referrerPolicy="no-referrer" />
+          </div>
+          <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-primary">Verify Your Email</h1>
           <p className="text-gray-500 mt-2">We've sent a verification link to {user.email}. Please verify your email to access the dashboard.</p>
           <div className="mt-6 flex flex-col gap-2">
-            <Button onClick={checkVerificationStatus} disabled={refreshing}>
+            <Button 
+              onClick={checkVerificationStatus} 
+              disabled={refreshing}
+              className="bg-primary hover:bg-primary/90 text-white rounded-2xl py-3 h-auto font-bold"
+            >
               {refreshing ? 'Checking...' : "I've Verified"}
             </Button>
-            <Button variant="secondary" onClick={async () => {
+            <Button 
+              variant="secondary" 
+              className="rounded-2xl py-3 h-auto font-medium"
+              onClick={async () => {
               try {
                 const res = await fetch('/api/resend-verification', { method: 'POST' });
                 const data = await res.json();
@@ -442,7 +479,10 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                 toast.error('Failed to resend email');
               }
             }}>Resend Verification Email</Button>
-            <Button variant="ghost" onClick={async () => {
+            <Button 
+              variant="ghost" 
+              className="rounded-2xl py-3 h-auto font-medium"
+              onClick={async () => {
               await fetch('/api/logout', { method: 'POST' });
               window.location.href = '/login';
             }}>Sign Out & Go Back</Button>
@@ -458,10 +498,8 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
       <header className="bg-white border-b border-gray-100 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <CreditCard className="text-white w-5 h-5" />
-            </div>
-            <span className="font-bold text-lg hidden sm:block">Card Manager</span>
+            <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="CardSwipe Logo" className="w-8 h-8" referrerPolicy="no-referrer" />
+            <span className="font-bold text-xl tracking-tight text-primary hidden sm:block">CardSwipe</span>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
@@ -480,9 +518,9 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { label: 'Total Cards', value: cards.length, icon: CreditCard, color: 'indigo' },
+            { label: 'Total Cards', value: cards.length, icon: CreditCard, color: 'primary' },
             { label: 'Total Limit', value: formatCurrency(totalLimit), icon: ArrowUpRight, color: 'emerald' },
             { label: 'Total Used', value: formatCurrency(totalUsed), icon: ArrowDownLeft, color: 'rose' },
             { label: 'Recoverable', value: formatCurrency(recoverable), icon: Users, color: 'amber' },
@@ -492,22 +530,121 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
-              className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm"
+              className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
             >
-              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-4", `bg-${stat.color}-50 text-${stat.color}-600`)}>
-                <stat.icon className="w-5 h-5" />
+              <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center mb-4", 
+                stat.color === 'primary' ? "bg-primary/10 text-primary" : `bg-${stat.color}-50 text-${stat.color}-600`
+              )}>
+                <stat.icon className="w-6 h-6" />
               </div>
-              <p className="text-sm text-gray-500">{stat.label}</p>
-              <p className="text-xl font-bold mt-1">{stat.value}</p>
+              <p className="text-sm font-medium text-gray-500">{stat.label}</p>
+              <p className="text-2xl font-bold mt-1 text-gray-900">{stat.value}</p>
             </motion.div>
           ))}
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Spending Overview</h3>
+                <p className="text-sm text-gray-500">Last 7 days activity</p>
+              </div>
+              <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full text-xs font-bold">
+                <TrendingUp className="w-3 h-3" />
+                <span>Live</span>
+              </div>
+            </div>
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={spendingData}>
+                  <defs>
+                    <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0F172B" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#0F172B" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                  <XAxis 
+                    dataKey="date" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 12, fill: '#9CA3AF' }}
+                    dy={10}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 12, fill: '#9CA3AF' }}
+                    tickFormatter={(value) => `₹${value}`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    formatter={(value: number) => [formatCurrency(value), 'Amount']}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="amount" 
+                    stroke="#0F172B" 
+                    strokeWidth={3}
+                    fillOpacity={1} 
+                    fill="url(#colorAmount)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
+            <h3 className="text-lg font-bold text-gray-900 mb-6">Spending by Category</h3>
+            <div className="h-[250px] w-full relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={8}
+                    dataKey="value"
+                  >
+                    {categoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    formatter={(value: number) => [formatCurrency(value), 'Total']}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <p className="text-xs text-gray-500 font-medium">Total Spent</p>
+                <p className="text-lg font-bold text-gray-900">{formatCurrency(totalUsed)}</p>
+              </div>
+            </div>
+            <div className="mt-6 space-y-3">
+              {categoryData.map((item, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="text-sm font-medium text-gray-600">{item.name}</span>
+                  </div>
+                  <span className="text-sm font-bold text-gray-900">{formatCurrency(item.value)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Cards Section */}
         <section>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold">Your Cards</h2>
-            <Button onClick={() => setShowAddCard(true)} className="flex items-center gap-2">
+            <Button onClick={() => setShowAddCard(true)} className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white rounded-2xl px-6 py-2.5 h-auto">
               <Plus className="w-4 h-4" /> Add Card
             </Button>
           </div>
@@ -529,8 +666,8 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                     layoutId={card.id}
                     onClick={() => setSelectedCard(card)}
                     className={cn(
-                      "relative overflow-hidden p-6 rounded-[2rem] text-white cursor-pointer shadow-xl transition-transform hover:scale-[1.02]",
-                      card.theme || "bg-indigo-600"
+                      "relative overflow-hidden p-8 rounded-[2.5rem] text-white cursor-pointer shadow-2xl transition-all hover:scale-[1.02] hover:shadow-primary/20",
+                      card.theme || "bg-primary"
                     )}
                   >
                     <div className="flex justify-between items-start mb-8">
@@ -548,11 +685,11 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                         <span>Used: {formatCurrency(cardUsed)}</span>
                         <span>Limit: {formatCurrency(card.limit)}</span>
                       </div>
-                      <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                      <div className="h-3 bg-white/20 rounded-full overflow-hidden">
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ width: `${percent}%` }}
-                          className="h-full bg-white"
+                          className="h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]"
                         />
                       </div>
                       <div className="flex justify-between items-end">
@@ -572,9 +709,9 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
           <div className="md:col-span-1 lg:col-span-2 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold">Recent Transactions</h2>
-              <Button variant="secondary" onClick={() => setShowAddTransaction(true)}>Add Transaction</Button>
+              <Button variant="secondary" onClick={() => setShowAddTransaction(true)} className="rounded-2xl px-6 py-2 h-auto">Add Transaction</Button>
             </div>
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden min-h-[200px] flex flex-col">
+            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden min-h-[200px] flex flex-col">
               <div className="divide-y divide-gray-50 flex-1">
                 {transactions.slice(0, 5).map((t) => (
                   <div key={t.id} className={cn(
@@ -690,7 +827,7 @@ const AddCardModal = ({ onClose, onAdd }: any) => {
     limit: '',
     billingDate: '1',
     dueDate: '20',
-    theme: 'bg-indigo-600'
+    theme: 'bg-primary'
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -825,12 +962,12 @@ const AddCardModal = ({ onClose, onAdd }: any) => {
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Theme</label>
               <div className="flex flex-wrap gap-3">
-                {['bg-indigo-600', 'bg-emerald-600', 'bg-rose-600', 'bg-amber-600', 'bg-slate-800', 'bg-gradient-to-br from-purple-600 to-blue-500'].map(t => (
+                {['bg-primary', 'bg-emerald-600', 'bg-rose-600', 'bg-amber-600', 'bg-slate-800', 'bg-gradient-to-br from-purple-600 to-blue-500'].map(t => (
                   <button 
                     key={t}
                     type="button"
                     onClick={() => setForm({ ...form, theme: t })}
-                    className={cn("w-8 h-8 rounded-full border-2", t, form.theme === t ? "border-indigo-300 scale-110" : "border-transparent")}
+                    className={cn("w-8 h-8 rounded-full border-2", t, form.theme === t ? "border-primary/50 scale-110" : "border-transparent")}
                   />
                 ))}
                 <div className="flex items-center gap-2">
@@ -938,7 +1075,7 @@ const AddTransactionModal = ({ cards, parties, onAddParty, onClose, onAdd }: any
                 onClick={() => setForm({ ...form, partyType: type as any, partyName: type === 'self' ? 'Self' : '', partyId: '' })}
                 className={cn(
                   "py-2 px-3 rounded-xl text-xs font-bold capitalize transition-all",
-                  form.partyType === type ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500"
+                  form.partyType === type ? "bg-primary text-white" : "bg-gray-100 text-gray-500"
                 )}
               >
                 {type}
@@ -953,7 +1090,7 @@ const AddTransactionModal = ({ cards, parties, onAddParty, onClose, onAdd }: any
                 <button 
                   type="button" 
                   onClick={onAddParty}
-                  className="text-xs text-indigo-600 font-bold hover:underline"
+                  className="text-xs text-primary font-bold hover:underline"
                 >
                   + Create Profile
                 </button>
@@ -1059,7 +1196,7 @@ const AddPartyModal = ({ onClose, onAdd }: any) => {
                 onClick={() => setForm({ ...form, type: type as any })}
                 className={cn(
                   "flex-1 py-2 rounded-xl text-sm font-bold capitalize transition-all",
-                  form.type === type ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500"
+                  form.type === type ? "bg-primary text-white" : "bg-gray-100 text-gray-500"
                 )}
               >
                 {type}
