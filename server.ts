@@ -60,8 +60,9 @@ async function startServer() {
     const db = getDb();
     const user = db.users.find(u => u.id === userId);
     if (user?.role === 'admin') return true;
-    // Default admin from runtime context
-    if (user?.email === 'sukumawa45@gmail.com' || user?.email === 'kumawatsumit45@gmail.com') return true;
+    // Default admin from runtime context - strictly limited to these emails
+    const adminEmails = ['sukumawa45@gmail.com', 'kumawatsumit45@gmail.com'];
+    if (user && adminEmails.includes(user.email)) return true;
     return false;
   };
 
@@ -215,8 +216,7 @@ async function startServer() {
     }
   });
 
-  app.get('/api/me', (req: any, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
+  app.get('/api/me', requireAuth, (req: any, res) => {
     if (req.session.userId === 'admin-id') {
       return res.json({ id: 'admin-id', fullName: 'Administrator', role: 'admin', isVerified: true });
     }
@@ -279,7 +279,7 @@ async function startServer() {
   });
 
   // --- Profile Routes ---
-  app.post('/api/profile', requireAuth, async (req: any, res) => {
+  app.post('/api/profile', requireAuth, requireVerified, async (req: any, res) => {
     const { fullName, phone, avatar } = req.body;
     const db = getDb();
     const user = db.users.find(u => u.id === req.session.userId);
@@ -294,7 +294,7 @@ async function startServer() {
     res.json({ message: 'Profile updated successfully', user: { id: user.id, fullName: user.fullName, email: user.email, phone: user.phone, avatar: user.avatar, isVerified: user.isVerified, role: user.role } });
   });
 
-  app.post('/api/update-email', requireAuth, async (req: any, res) => {
+  app.post('/api/update-email', requireAuth, requireVerified, async (req: any, res) => {
     const { email } = req.body;
     const db = getDb();
     const user = db.users.find(u => u.id === req.session.userId);
@@ -321,7 +321,7 @@ async function startServer() {
     res.json({ message: 'Email updated. Please verify your new email address.' });
   });
 
-  app.post('/api/update-password', requireAuth, async (req: any, res) => {
+  app.post('/api/update-password', requireAuth, requireVerified, async (req: any, res) => {
     const { currentPassword, newPassword } = req.body;
     const db = getDb();
     const user = db.users.find(u => u.id === req.session.userId);
@@ -371,6 +371,22 @@ async function startServer() {
     res.json({ message: `Password reset to: ${newPassword}`, temporaryPassword: newPassword });
   });
 
+  app.post('/api/admin/user/:id/toggle-admin', requireAuth, requireAdmin, (req: any, res: any) => {
+    const db = getDb();
+    const user = db.users.find(u => u.id === req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Prevent self-demotion
+    if (user.id === req.session.userId) {
+      return res.status(400).json({ error: 'You cannot demote yourself' });
+    }
+
+    user.role = user.role === 'admin' ? 'user' : 'admin';
+    saveDb(db);
+    logActivity(req.session.userId, 'ADMIN_TOGGLE_ROLE', `Admin toggled role for ${user.email} to ${user.role}`, req);
+    res.json({ message: `User role updated to ${user.role}`, role: user.role });
+  });
+
   app.post('/api/admin/user/:id/update', requireAuth, requireAdmin, (req: any, res) => {
     const db = getDb();
     const user = db.users.find(u => u.id === req.params.id);
@@ -416,13 +432,13 @@ async function startServer() {
   });
 
   // --- Party Routes ---
-  app.get('/api/parties', requireAuth, (req: any, res) => {
+  app.get('/api/parties', requireAuth, requireVerified, (req: any, res) => {
     const db = getDb();
     const parties = db.parties.filter(p => p.userId === req.session.userId);
     res.json(parties);
   });
 
-  app.post('/api/parties', requireAuth, (req: any, res) => {
+  app.post('/api/parties', requireAuth, requireVerified, (req: any, res) => {
     const db = getDb();
     const newParty: Party = {
       ...req.body,

@@ -637,6 +637,20 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
     }
   };
 
+  const handleToggleAdmin = async (userId: string, currentRole: string) => {
+    const res = await fetch(`/api/admin/user/${userId}/toggle-admin`, {
+      method: 'POST'
+    });
+    if (res.ok) {
+      const data = await res.json();
+      toast.success(data.message);
+      fetchData();
+    } else {
+      const data = await res.json();
+      toast.error(data.error || 'Failed to toggle admin role');
+    }
+  };
+
   if (loading) return <div className="p-12 text-center text-gray-500">Loading admin data...</div>;
 
   return (
@@ -735,6 +749,9 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
                   </div>
                 </div>
                 <div className="space-y-4 pt-6 border-t border-gray-100">
+                  <Button variant="secondary" className="w-full justify-start gap-2 rounded-2xl" onClick={() => handleToggleAdmin(selectedUser.id, selectedUser.role)}>
+                    <Shield size={18} /> {selectedUser.role === 'admin' ? 'Demote to User' : 'Promote to Admin'}
+                  </Button>
                   <Button variant="secondary" className="w-full justify-start gap-2 rounded-2xl" onClick={() => handleResetPassword(selectedUser.id)}>
                     <Key size={18} /> Reset Password
                   </Button>
@@ -833,6 +850,9 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
                     </td>
                     <td className="px-8 py-4 text-right">
                       <div className="flex justify-end gap-2">
+                        <button onClick={() => handleToggleAdmin(u.id, u.role)} className="p-2 hover:bg-amber-50 text-amber-600 rounded-2xl transition-colors" title={u.role === 'admin' ? "Demote to User" : "Promote to Admin"}>
+                          <Shield size={18} />
+                        </button>
                         <button onClick={() => handleViewUser(u)} className="p-2 hover:bg-blue-50 text-blue-600 rounded-2xl transition-colors" title="View Details">
                           <Eye size={18} />
                         </button>
@@ -1001,7 +1021,8 @@ const CreditCardUI = ({ card, transactions, onClick }: { card: Card, transaction
 };
 
 const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | null) => void }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'admin' | 'profile'>('overview');
+  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [cards, setCards] = useState<Card[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [parties, setParties] = useState<Party[]>([]);
@@ -1015,6 +1036,11 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
 
   const [searchParams, setSearchParams] = useSearchParams();
   const verified = searchParams.get('verified');
+
+  const handleLogout = async () => {
+    await fetch('/api/logout', { method: 'POST' });
+    window.location.href = '/login';
+  };
 
   const checkVerificationStatus = async () => {
     setRefreshing(true);
@@ -1168,9 +1194,9 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50 flex flex-col font-quicksand">
       {/* Header */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-30">
+      <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="CardSwipe Logo" className="w-8 h-8" referrerPolicy="no-referrer" />
@@ -1199,18 +1225,57 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                 Profile
               </button>
             </nav>
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium">{user.fullName}</p>
-              <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+            <div className="flex items-center gap-3">
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-bold text-gray-900">{user.fullName}</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{user.role}</p>
+              </div>
+              <Button variant="secondary" className="p-2 rounded-2xl" onClick={handleLogout}>
+                <LogOut className="w-5 h-5" />
+              </Button>
+              <div className="md:hidden">
+                <Button variant="secondary" className="p-2 rounded-2xl" onClick={() => setShowMobileMenu(!showMobileMenu)}>
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </div>
             </div>
-            <Button variant="ghost" className="p-2" onClick={async () => {
-              await fetch('/api/logout', { method: 'POST' });
-              window.location.href = '/login';
-            }}>
-              <LogOut className="w-5 h-5" />
-            </Button>
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        <AnimatePresence>
+          {showMobileMenu && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="md:hidden bg-white border-b border-gray-100 overflow-hidden"
+            >
+              <div className="p-4 space-y-2">
+                <button 
+                  onClick={() => { setActiveTab('overview'); setShowMobileMenu(false); }}
+                  className={cn("w-full text-left px-4 py-3 rounded-2xl text-sm font-bold", activeTab === 'overview' ? "bg-gray-50 text-primary" : "text-gray-500")}
+                >
+                  Overview
+                </button>
+                {user.role === 'admin' && (
+                  <button 
+                    onClick={() => { setActiveTab('admin'); setShowMobileMenu(false); }}
+                    className={cn("w-full text-left px-4 py-3 rounded-2xl text-sm font-bold", activeTab === 'admin' ? "bg-gray-50 text-primary" : "text-gray-500")}
+                  >
+                    Admin
+                  </button>
+                )}
+                <button 
+                  onClick={() => { setActiveTab('profile'); setShowMobileMenu(false); }}
+                  className={cn("w-full text-left px-4 py-3 rounded-2xl text-sm font-bold", activeTab === 'profile' ? "bg-gray-50 text-primary" : "text-gray-500")}
+                >
+                  Profile
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
@@ -1434,13 +1499,14 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
         )}
       </main>
 
-      <footer className="max-w-7xl mx-auto px-4 py-12 border-t border-gray-100">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-100 py-12 mt-auto sticky bottom-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
             <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="CardSwipe Logo" className="w-6 h-6" referrerPolicy="no-referrer" />
             <span className="font-bold text-lg text-primary">CardSwipe</span>
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 text-center md:text-left">
             A product by <a href="https://www.conzex.com" target="_blank" rel="noopener noreferrer" className="font-bold bg-gradient-to-r from-[#0F172B] to-[#3577F0] bg-clip-text text-transparent hover:opacity-80 transition-opacity">Conzex Global Private Limited</a>
           </p>
           <p className="text-xs text-gray-400">© 2026 CardSwipe. All rights reserved.</p>
