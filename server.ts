@@ -53,13 +53,20 @@ async function startServer() {
   };
 
   // Middleware to check admin
+  const isAdmin = (userId: string | undefined) => {
+    if (!userId) return false;
+    if (userId === 'admin-id') return true;
+    const db = getDb();
+    const user = db.users.find(u => u.id === userId);
+    if (user?.role === 'admin') return true;
+    // Default admin from runtime context
+    if (user?.email === 'sukumawa45@gmail.com' || user?.email === 'kumawatsumit45@gmail.com') return true;
+    return false;
+  };
+
   const requireAdmin = (req: any, res: any, next: any) => {
-    if (req.session.userId !== 'admin-id') {
-      const db = getDb();
-      const user = db.users.find(u => u.id === req.session.userId);
-      if (user?.role !== 'admin') {
-        return res.status(403).json({ error: 'Forbidden: Admin access required' });
-      }
+    if (!isAdmin(req.session.userId)) {
+      return res.status(403).json({ error: 'Forbidden: Admin access required' });
     }
     next();
   };
@@ -80,6 +87,8 @@ async function startServer() {
       userEmail,
       action,
       details,
+      type: action.includes('ADMIN') || action.includes('CLEAR') ? 'admin' : 
+            action.includes('LOGIN') || action.includes('REGISTER') || action.includes('VERIFY') || action.includes('PASSWORD') ? 'auth' : 'activity',
       ip: req.ip,
       timestamp: new Date().toISOString()
     };
@@ -176,17 +185,19 @@ async function startServer() {
     }
     req.session.userId = user.id;
     logActivity(user.id, 'LOGIN', 'User logged in', req);
-    res.json({ user: { id: user.id, fullName: user.fullName, email: user.email, isVerified: user.isVerified, role: user.role } });
+    const role = isAdmin(user.id) ? 'admin' : user.role;
+    res.json({ user: { id: user.id, fullName: user.fullName, email: user.email, isVerified: user.isVerified, role } });
   });
 
   app.get('/api/me', (req: any, res) => {
     if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
     if (req.session.userId === 'admin-id') {
-      return res.json({ id: 'admin-id', fullName: 'Administrator', role: 'admin' });
+      return res.json({ id: 'admin-id', fullName: 'Administrator', role: 'admin', isVerified: true });
     }
     const db = getDb();
     const user = db.users.find(u => u.id === req.session.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
+    const role = isAdmin(user.id) ? 'admin' : user.role;
     res.json({ 
       id: user.id, 
       fullName: user.fullName, 
@@ -194,7 +205,7 @@ async function startServer() {
       phone: user.phone,
       avatar: user.avatar,
       isVerified: user.isVerified, 
-      role: user.role 
+      role
     });
   });
 
@@ -233,7 +244,9 @@ async function startServer() {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     user.password = hashedPassword;
+    user.isVerified = true; // Automatically verify if they reset via email link
     delete user.resetToken;
+    delete user.verificationToken;
     saveDb(db);
     logActivity(user.id, 'RESET_PASSWORD', 'Password reset via token', req);
     res.json({ message: 'Password has been reset successfully.' });

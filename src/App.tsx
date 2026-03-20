@@ -212,7 +212,7 @@ const Login = ({ onLogin }: any) => {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full bg-white p-10 rounded-[2.5rem] shadow-2xl text-center border border-gray-100"
+        className="max-w-md w-full bg-white p-10 rounded-3xl shadow-2xl text-center border border-gray-100"
       >
         <div className="mb-8 flex justify-center">
           <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="CardSwipe Logo" className="w-16 h-16" referrerPolicy="no-referrer" />
@@ -292,7 +292,7 @@ const Register = () => {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full bg-white p-10 rounded-[2.5rem] shadow-2xl text-center border border-gray-100"
+        className="max-w-md w-full bg-white p-10 rounded-3xl shadow-2xl text-center border border-gray-100"
       >
         <div className="mb-8 flex justify-center">
           <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="CardSwipe Logo" className="w-16 h-16" referrerPolicy="no-referrer" />
@@ -339,7 +339,7 @@ const ConfirmModal = ({ title, message, onConfirm, onCancel, confirmText = 'Conf
     <motion.div 
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl text-center"
+      className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl text-center"
     >
       <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
         <AlertCircle size={32} />
@@ -418,16 +418,24 @@ const ProfileSection = ({ user, setUser }: any) => {
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
           <h2 className="text-2xl font-bold mb-6">Profile Settings</h2>
           <form onSubmit={handleUpdateProfile} className="space-y-4">
+            <div className="flex items-center gap-2 mb-4">
+              <span className={cn(
+                "px-3 py-1 rounded-full text-xs font-bold",
+                user.isVerified ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"
+              )}>
+                {user.isVerified ? 'Verified Account' : 'Unverified Account'}
+              </span>
+            </div>
             <Input label="Full Name" value={fullName} onChange={(e: any) => setFullName(e.target.value)} required />
             <Input label="Phone Number" value={phone} onChange={(e: any) => setPhone(e.target.value)} />
             <Button className="w-full py-3" disabled={loading}>Save Changes</Button>
           </form>
         </div>
 
-        <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
           <h2 className="text-2xl font-bold mb-6">Security</h2>
           <form onSubmit={handleUpdatePassword} className="space-y-4">
             <Input label="Current Password" type="password" value={currentPassword} onChange={(e: any) => setCurrentPassword(e.target.value)} required />
@@ -437,7 +445,7 @@ const ProfileSection = ({ user, setUser }: any) => {
         </div>
       </div>
 
-      <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm max-w-2xl">
+      <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm max-w-2xl">
         <h2 className="text-2xl font-bold mb-2">Change Email</h2>
         <p className="text-gray-500 mb-6 text-sm">Current: {user.email}. You will need to verify the new email address.</p>
         <form onSubmit={handleUpdateEmail} className="flex gap-4">
@@ -516,6 +524,18 @@ const AdminSection = ({ setConfirmAction }: any) => {
     });
   };
 
+  const handleToggleVerify = async (userId: string, currentStatus: boolean) => {
+    const res = await fetch(`/api/admin/user/${userId}/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isVerified: !currentStatus })
+    });
+    if (res.ok) {
+      toast.success(currentStatus ? 'User unverified' : 'User verified');
+      fetchData();
+    }
+  };
+
   if (loading) return <div className="p-12 text-center text-gray-500">Loading admin data...</div>;
 
   return (
@@ -541,7 +561,7 @@ const AdminSection = ({ setConfirmAction }: any) => {
       </div>
 
       {view === 'users' ? (
-        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50 border-b border-gray-100">
@@ -558,9 +578,9 @@ const AdminSection = ({ setConfirmAction }: any) => {
                   <td className="px-8 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
-                        {u.fullName[0]}
+                        {u.fullName ? u.fullName[0] : '?'}
                       </div>
-                      <span className="font-bold">{u.fullName}</span>
+                      <span className="font-bold">{u.fullName || 'No Name'}</span>
                     </div>
                   </td>
                   <td className="px-8 py-4 text-gray-500">{u.email}</td>
@@ -573,13 +593,16 @@ const AdminSection = ({ setConfirmAction }: any) => {
                     </span>
                   </td>
                   <td className="px-8 py-4">
-                    <span className={cn(
-                      "flex items-center gap-1.5 text-xs font-bold",
-                      u.isVerified ? "text-emerald-600" : "text-rose-600"
-                    )}>
+                    <button 
+                      onClick={() => handleToggleVerify(u.id, u.isVerified)}
+                      className={cn(
+                        "flex items-center gap-1.5 text-xs font-bold hover:opacity-80 transition-opacity",
+                        u.isVerified ? "text-emerald-600" : "text-rose-600"
+                      )}
+                    >
                       <div className={cn("w-1.5 h-1.5 rounded-full", u.isVerified ? "bg-emerald-600" : "bg-rose-600")} />
                       {u.isVerified ? 'Verified' : 'Unverified'}
-                    </span>
+                    </button>
                   </td>
                   <td className="px-8 py-4 text-right">
                     <div className="flex justify-end gap-2">
@@ -593,11 +616,16 @@ const AdminSection = ({ setConfirmAction }: any) => {
                   </td>
                 </tr>
               ))}
+              {users.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-8 py-12 text-center text-gray-400">No users found</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       ) : (
-        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="divide-y divide-gray-100">
             {logs.map((log, i) => (
               <div key={i} className="px-8 py-4 hover:bg-gray-50/50 transition-colors flex items-center justify-between">
@@ -642,7 +670,7 @@ const CreditCardUI = ({ card, transactions, onClick }: { card: Card, transaction
       layoutId={card.id}
       onClick={onClick}
       className={cn(
-        "relative overflow-hidden p-8 rounded-[2.5rem] text-white cursor-pointer shadow-2xl transition-all hover:scale-[1.02] hover:shadow-primary/20",
+        "relative overflow-hidden p-8 rounded-3xl text-white cursor-pointer shadow-2xl transition-all hover:scale-[1.02] hover:shadow-primary/20",
         card.theme || "bg-primary"
       )}
     >
@@ -813,7 +841,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
   if (!user.isVerified && user.role !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="max-w-md w-full bg-white p-10 rounded-[2.5rem] shadow-2xl text-center border border-gray-100">
+        <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-2xl text-center border border-gray-100">
           <div className="mb-6 flex justify-center">
             <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="CardSwipe Logo" className="w-16 h-16" referrerPolicy="no-referrer" />
           </div>
@@ -938,7 +966,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
 
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+              <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
                 <h3 className="text-xl font-bold mb-6">Spending Analysis</h3>
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -961,7 +989,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                   </ResponsiveContainer>
                 </div>
               </div>
-              <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+              <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
                 <h3 className="text-xl font-bold mb-6">Distribution</h3>
                 <div className="h-[300px] w-full relative">
                   <ResponsiveContainer width="100%" height="100%">
@@ -1017,7 +1045,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                   />
                 ))}
                 {cards.length === 0 && (
-                  <div className="col-span-full py-20 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-gray-100">
+                  <div className="col-span-full py-20 text-center bg-white rounded-3xl border-2 border-dashed border-gray-100">
                     <CreditCard className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                     <p className="text-gray-500">No cards added yet. Start by adding your first card.</p>
                   </div>
@@ -1032,7 +1060,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                   <h2 className="text-2xl font-bold">Recent Transactions</h2>
                   <Button variant="secondary" onClick={() => setShowAddTransaction(true)} className="rounded-2xl px-6 py-2 h-auto">Add Transaction</Button>
                 </div>
-                <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden min-h-[400px] flex flex-col">
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden min-h-[400px] flex flex-col">
                   <div className="flex-1 overflow-y-auto">
                     {transactions.slice(0, 10).map((t) => (
                       <div key={t.id} className="px-8 py-4 hover:bg-gray-50/50 transition-colors flex items-center justify-between border-b border-gray-50 last:border-0">
@@ -1077,7 +1105,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                     const diff = differenceInDays(dueThisMonth, today);
                     return diff >= 0;
                   }).length === 0 ? (
-                    <div className="bg-white p-12 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center text-gray-400 min-h-[400px]">
+                    <div className="bg-white p-12 rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center text-gray-400 min-h-[400px]">
                       <Calendar className="w-12 h-12 mb-4 opacity-20" />
                       <p>No upcoming dues</p>
                     </div>
@@ -1210,7 +1238,7 @@ const AddCardModal = ({ onClose, onAdd }: any) => {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden"
+        className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden"
       >
         <div className="p-8">
           <div className="flex justify-between items-center mb-6">
@@ -1387,7 +1415,7 @@ const AddTransactionModal = ({ cards, parties, onAddParty, onClose, onAdd }: any
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-8"
+        className="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-8"
       >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">Add Transaction</h2>
@@ -1531,7 +1559,7 @@ const AddPartyModal = ({ onClose, onAdd }: any) => {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-8"
+        className="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-8"
       >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">Create Profile</h2>
@@ -1636,7 +1664,7 @@ const CardDetailsModal = ({ card, transactions, onClose, onUpdate }: any) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <motion.div 
         layoutId={card.id}
-        className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+        className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
       >
         <div className={cn("p-8 text-white relative", card.theme)}>
           <div className="flex justify-between items-start mb-8">
@@ -1756,7 +1784,7 @@ const ResetPassword = () => {
       <motion.div 
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="bg-white w-full max-w-md rounded-[2.5rem] shadow-xl p-10"
+        className="bg-white w-full max-w-md rounded-3xl shadow-xl p-10"
       >
         <h1 className="text-3xl font-bold mb-2">Reset Password</h1>
         <p className="text-gray-500 mb-8">Enter your new password below.</p>
