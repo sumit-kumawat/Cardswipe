@@ -46,6 +46,7 @@ async function startServer() {
   const requireVerified = (req: any, res: any, next: any) => {
     const db = getDb();
     const user = db.users.find(u => u.id === req.session.userId);
+    if (req.session.userId === 'admin-id') return next();
     if (!user?.isVerified && user?.role !== 'admin') {
       return res.status(403).json({ error: 'Email not verified' });
     }
@@ -174,7 +175,7 @@ async function startServer() {
     if (email === 'admin' && password === 'admin') {
       req.session.userId = 'admin-id';
       logActivity('admin-id', 'LOGIN', 'Admin logged in', req);
-      return res.json({ user: { id: 'admin-id', fullName: 'Administrator', role: 'admin' } });
+      return res.json({ user: { id: 'admin-id', fullName: 'Administrator', role: 'admin', isVerified: true } });
     }
 
     const db = getDb();
@@ -183,10 +184,35 @@ async function startServer() {
       logActivity('unknown', 'LOGIN_FAILED', `Failed login attempt for ${email}`, req);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    if (!user.isVerified && !isAdmin(user.id)) {
+      return res.status(403).json({ error: 'Email not verified. Please check your inbox or resend verification email.', unverified: true });
+    }
+
     req.session.userId = user.id;
     logActivity(user.id, 'LOGIN', 'User logged in', req);
     const role = isAdmin(user.id) ? 'admin' : user.role;
     res.json({ user: { id: user.id, fullName: user.fullName, email: user.email, isVerified: user.isVerified, role } });
+  });
+
+  app.post('/api/resend-verification-public', async (req, res) => {
+    const { email } = req.body;
+    const db = getDb();
+    const user = db.users.find(u => u.email === email);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.isVerified) return res.status(400).json({ error: 'Email already verified' });
+    
+    const verificationToken = uuidv4();
+    user.verificationToken = verificationToken;
+    saveDb(db);
+    
+    try {
+      await sendVerificationEmail(user.email, verificationToken);
+      res.json({ message: 'Verification email sent successfully.' });
+    } catch (e) {
+      console.error('Failed to resend email', e);
+      res.status(500).json({ error: 'Failed to send email' });
+    }
   });
 
   app.get('/api/me', (req: any, res) => {
@@ -377,6 +403,18 @@ async function startServer() {
     res.json({ message: 'User and all associated data deleted' });
   });
 
+  app.get('/api/admin/user/:id/cards', requireAuth, requireAdmin, (req, res) => {
+    const db = getDb();
+    const cards = db.cards.filter(c => c.userId === req.params.id);
+    res.json(cards);
+  });
+
+  app.get('/api/admin/user/:id/transactions', requireAuth, requireAdmin, (req, res) => {
+    const db = getDb();
+    const transactions = db.transactions.filter(t => t.userId === req.params.id);
+    res.json(transactions);
+  });
+
   // --- Party Routes ---
   app.get('/api/parties', requireAuth, (req: any, res) => {
     const db = getDb();
@@ -398,13 +436,8 @@ async function startServer() {
   });
 
   // --- Card Routes ---
-  app.get('/api/cards', requireAuth, (req: any, res) => {
+  app.get('/api/cards', requireAuth, requireVerified, (req: any, res) => {
     const db = getDb();
-    const user = db.users.find(u => u.id === req.session.userId);
-    // Allow admin or verified users
-    if (req.session.userId !== 'admin-id' && user && !user.isVerified) {
-      return res.json([]); // Return empty if not verified
-    }
     const cards = db.cards.filter(c => c.userId === req.session.userId).map(c => ({
       ...c,
       cardNumber: decrypt(c.cardNumber),
@@ -432,7 +465,7 @@ async function startServer() {
     }
   });
 
-  app.delete('/api/cards/:id', requireAuth, (req: any, res) => {
+  app.delete('/api/cards/:id', requireAuth, requireVerified, (req: any, res) => {
     const db = getDb();
     db.cards = db.cards.filter(c => !(c.id === req.params.id && c.userId === req.session.userId));
     db.transactions = db.transactions.filter(t => t.cardId !== req.params.id);
@@ -441,12 +474,8 @@ async function startServer() {
   });
 
   // --- Transaction Routes ---
-  app.get('/api/transactions', requireAuth, (req: any, res) => {
+  app.get('/api/transactions', requireAuth, requireVerified, (req: any, res) => {
     const db = getDb();
-    const user = db.users.find(u => u.id === req.session.userId);
-    if (req.session.userId !== 'admin-id' && user && !user.isVerified) {
-      return res.json([]);
-    }
     const transactions = db.transactions.filter(t => t.userId === req.session.userId);
     res.json(transactions);
   });
@@ -468,7 +497,7 @@ async function startServer() {
     res.json(newTransaction);
   });
 
-  app.post('/api/settle/:id', requireAuth, (req: any, res) => {
+  app.post('/api/settle/:id', requireAuth, requireVerified, (req: any, res) => {
     const db = getDb();
     const transaction = db.transactions.find(t => t.id === req.params.id && t.userId === req.session.userId);
     if (transaction) {

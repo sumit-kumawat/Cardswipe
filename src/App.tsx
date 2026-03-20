@@ -99,7 +99,7 @@ const Button = ({ className, variant = 'primary', ...props }: any) => {
   };
   return (
     <button 
-      className={cn('px-4 py-2 rounded-xl font-medium transition-all active:scale-95 disabled:opacity-50', variants[variant], className)} 
+      className={cn('px-4 py-2 rounded-2xl font-medium transition-all active:scale-95 disabled:opacity-50', variants[variant], className)} 
       {...props} 
     />
   );
@@ -110,7 +110,7 @@ const Input = ({ label, error, ...props }: any) => (
     {label && <label className="text-sm font-medium text-gray-700">{label}</label>}
     <input 
       className={cn(
-        "w-full px-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all",
+        "w-full px-4 py-2 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all",
         error && "border-red-500 ring-red-200"
       )} 
       {...props} 
@@ -126,11 +126,13 @@ const Login = ({ onLogin }: any) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setUnverifiedEmail(null);
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
@@ -143,10 +145,36 @@ const Login = ({ onLogin }: any) => {
         toast.success('Welcome back!');
         navigate('/');
       } else {
+        if (data.unverified) {
+          setUnverifiedEmail(email);
+        }
         toast.error(data.error || 'Login failed');
       }
     } catch (e) {
       toast.error('Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!unverifiedEmail) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/resend-verification-public', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: unverifiedEmail })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message);
+        setUnverifiedEmail(null);
+      } else {
+        toast.error(data.error);
+      }
+    } catch (e) {
+      toast.error('Failed to resend email');
     } finally {
       setLoading(false);
     }
@@ -240,6 +268,22 @@ const Login = ({ onLogin }: any) => {
           <Button className="w-full py-3" disabled={loading}>
             {loading ? 'Logging in...' : 'Sign In'}
           </Button>
+          
+          {unverifiedEmail && (
+            <div className="mt-4 p-4 bg-amber-50 rounded-2xl border border-amber-100 text-center">
+              <p className="text-sm text-amber-800 mb-2 font-medium">Email not verified yet</p>
+              <Button 
+                type="button"
+                variant="secondary" 
+                className="w-full py-2 text-xs font-bold"
+                onClick={handleResend}
+                disabled={loading}
+              >
+                Resend Verification Email
+              </Button>
+            </div>
+          )}
+
           <div className="text-center">
             <button 
               type="button"
@@ -459,26 +503,83 @@ const ProfileSection = ({ user, setUser }: any) => {
   );
 };
 
-const AdminSection = ({ setConfirmAction }: any) => {
+const AdminSection = ({ user, setConfirmAction }: any) => {
   const [users, setUsers] = useState<UserData[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'users' | 'logs'>('users');
+  const [view, setView] = useState<'users' | 'logs' | 'stats'>('users');
+  const [search, setSearch] = useState('');
+  const [selectedUser, setSelectedUser] = useState<any>(null);
 
   const fetchData = async () => {
     setLoading(true);
-    const [uRes, lRes] = await Promise.all([
-      fetch('/api/admin/users'),
-      fetch('/api/admin/logs')
-    ]);
-    if (uRes.ok) setUsers(await uRes.json());
-    if (lRes.ok) setLogs(await lRes.json());
-    setLoading(false);
+    try {
+      const [uRes, lRes] = await Promise.all([
+        fetch('/api/admin/users'),
+        fetch('/api/admin/logs')
+      ]);
+      if (uRes.ok) setUsers(await uRes.json());
+      if (lRes.ok) setLogs(await lRes.json());
+    } catch (e) {
+      toast.error('Failed to fetch admin data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
+    if (user?.role !== 'admin') return;
     fetchData();
-  }, []);
+  }, [user]);
+
+  const handleViewUser = async (u: UserData) => {
+    setLoading(true);
+    try {
+      const [cRes, tRes] = await Promise.all([
+        fetch(`/api/admin/user/${u.id}/cards`),
+        fetch(`/api/admin/user/${u.id}/transactions`)
+      ]);
+      if (cRes.ok && tRes.ok) {
+        setSelectedUser({
+          ...u,
+          cards: await cRes.json(),
+          transactions: await tRes.json()
+        });
+      }
+    } catch (e) {
+      toast.error('Failed to fetch user details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (user?.role !== 'admin') {
+    return (
+      <div className="p-12 text-center bg-white rounded-3xl border border-gray-100">
+        <Shield className="w-12 h-12 mx-auto mb-4 text-rose-500" />
+        <h2 className="text-2xl font-bold">Access Denied</h2>
+        <p className="text-gray-500">You do not have permission to view this section.</p>
+      </div>
+    );
+  }
+
+  const filteredUsers = users.filter(u => 
+    u.fullName?.toLowerCase().includes(search.toLowerCase()) || 
+    u.email?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const filteredLogs = logs.filter(l => 
+    l.action?.toLowerCase().includes(search.toLowerCase()) || 
+    l.userEmail?.toLowerCase().includes(search.toLowerCase()) ||
+    l.details?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const stats = {
+    totalUsers: users.length,
+    verifiedUsers: users.filter(u => u.isVerified).length,
+    admins: users.filter(u => u.role === 'admin').length,
+    totalLogs: logs.length
+  };
 
   const handleResetPassword = async (userId: string) => {
     setConfirmAction({
@@ -540,98 +641,228 @@ const AdminSection = ({ setConfirmAction }: any) => {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2 bg-gray-100 p-1 rounded-2xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'blue' },
+          { label: 'Verified', value: stats.verifiedUsers, icon: CheckCircle2, color: 'emerald' },
+          { label: 'Admins', value: stats.admins, icon: Shield, color: 'amber' },
+          { label: 'System Logs', value: stats.totalLogs, icon: Activity, color: 'slate' },
+        ].map((stat, i) => (
+          <div key={i} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center",
+                stat.color === 'blue' ? "bg-blue-50 text-blue-600" :
+                stat.color === 'emerald' ? "bg-emerald-50 text-emerald-600" :
+                stat.color === 'amber' ? "bg-amber-50 text-amber-600" : "bg-slate-50 text-slate-600"
+              )}>
+                <stat.icon size={24} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{stat.label}</p>
+                <p className="text-xl font-bold text-gray-900">{stat.value}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex gap-2 bg-gray-100 p-1 rounded-2xl w-full md:w-auto">
           <button 
             onClick={() => setView('users')}
-            className={cn("px-6 py-2 rounded-xl text-sm font-bold transition-all", view === 'users' ? "bg-white text-primary shadow-sm" : "text-gray-500")}
+            className={cn("flex-1 md:flex-none px-6 py-2 rounded-2xl text-sm font-bold transition-all", view === 'users' ? "bg-white text-primary shadow-sm" : "text-gray-500")}
           >
             Users
           </button>
           <button 
             onClick={() => setView('logs')}
-            className={cn("px-6 py-2 rounded-xl text-sm font-bold transition-all", view === 'logs' ? "bg-white text-primary shadow-sm" : "text-gray-500")}
+            className={cn("flex-1 md:flex-none px-6 py-2 rounded-2xl text-sm font-bold transition-all", view === 'logs' ? "bg-white text-primary shadow-sm" : "text-gray-500")}
           >
-            Activity Logs
+            Logs
+          </button>
+          <button 
+            onClick={() => setView('stats')}
+            className={cn("flex-1 md:flex-none px-6 py-2 rounded-2xl text-sm font-bold transition-all", view === 'stats' ? "bg-white text-primary shadow-sm" : "text-gray-500")}
+          >
+            Stats
           </button>
         </div>
-        {view === 'logs' && (
-          <Button variant="danger" className="py-2 px-6" onClick={handleClearLogs}>Clear Logs</Button>
-        )}
+        
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="relative flex-1 md:w-64">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input 
+              type="text"
+              placeholder={`Search ${view}...`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm"
+            />
+          </div>
+          {view === 'logs' && (
+            <Button variant="danger" className="py-2 px-6" onClick={handleClearLogs}>Clear</Button>
+          )}
+        </div>
       </div>
 
-      {view === 'users' ? (
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50/50 border-b border-gray-100">
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">User</th>
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Email</th>
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Role</th>
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {users.map(u => (
-                <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-8 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
-                        {u.fullName ? u.fullName[0] : '?'}
-                      </div>
-                      <span className="font-bold">{u.fullName || 'No Name'}</span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-4 text-gray-500">{u.email}</td>
-                  <td className="px-8 py-4">
+      {selectedUser ? (
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Button variant="secondary" onClick={() => setSelectedUser(null)} className="p-2 rounded-2xl">
+              <X size={20} />
+            </Button>
+            <h2 className="text-2xl font-bold">User Details: {selectedUser.fullName}</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-1 space-y-6">
+              <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                <div className="flex flex-col items-center text-center mb-6">
+                  <div className="w-20 h-20 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold mb-4">
+                    {selectedUser.fullName[0]}
+                  </div>
+                  <h3 className="text-xl font-bold">{selectedUser.fullName}</h3>
+                  <p className="text-gray-500">{selectedUser.email}</p>
+                  <div className="mt-4 flex gap-2">
+                    <span className="px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-bold uppercase">{selectedUser.role}</span>
                     <span className={cn(
-                      "px-3 py-1 rounded-full text-xs font-bold",
-                      u.role === 'admin' ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"
+                      "px-3 py-1 rounded-full text-xs font-bold uppercase",
+                      selectedUser.isVerified ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"
                     )}>
-                      {u.role.toUpperCase()}
+                      {selectedUser.isVerified ? 'Verified' : 'Unverified'}
                     </span>
-                  </td>
-                  <td className="px-8 py-4">
-                    <button 
-                      onClick={() => handleToggleVerify(u.id, u.isVerified)}
-                      className={cn(
-                        "flex items-center gap-1.5 text-xs font-bold hover:opacity-80 transition-opacity",
-                        u.isVerified ? "text-emerald-600" : "text-rose-600"
-                      )}
-                    >
-                      <div className={cn("w-1.5 h-1.5 rounded-full", u.isVerified ? "bg-emerald-600" : "bg-rose-600")} />
-                      {u.isVerified ? 'Verified' : 'Unverified'}
-                    </button>
-                  </td>
-                  <td className="px-8 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => handleResetPassword(u.id)} className="p-2 hover:bg-amber-50 text-amber-600 rounded-xl transition-colors" title="Reset Password">
-                        <Key size={18} />
-                      </button>
-                      <button onClick={() => handleDeleteUser(u.id)} className="p-2 hover:bg-rose-50 text-rose-600 rounded-xl transition-colors" title="Delete Account">
-                        <Trash2 size={18} />
-                      </button>
+                  </div>
+                </div>
+                <div className="space-y-4 pt-6 border-t border-gray-100">
+                  <Button variant="secondary" className="w-full justify-start gap-2 rounded-2xl" onClick={() => handleResetPassword(selectedUser.id)}>
+                    <Key size={18} /> Reset Password
+                  </Button>
+                  <Button variant="danger" className="w-full justify-start gap-2 rounded-2xl" onClick={() => handleDeleteUser(selectedUser.id)}>
+                    <Trash2 size={18} /> Delete Account
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                <h3 className="text-lg font-bold mb-4">Cards ({selectedUser.cards.length})</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {selectedUser.cards.map((c: any) => (
+                    <div key={c.id} className={cn("p-4 rounded-2xl text-white", c.theme)}>
+                      <p className="text-xs font-bold opacity-80 uppercase tracking-widest">{c.cardType}</p>
+                      <p className="text-lg font-bold mt-2">•••• •••• •••• {c.cardNumber.slice(-4)}</p>
+                      <div className="flex justify-between mt-4">
+                        <p className="text-xs opacity-80">Limit: {formatCurrency(c.limit)}</p>
+                        <p className="text-xs opacity-80">Due: {c.dueDate}</p>
+                      </div>
                     </div>
-                  </td>
-                </tr>
-              ))}
-              {users.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-8 py-12 text-center text-gray-400">No users found</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                  ))}
+                  {selectedUser.cards.length === 0 && <p className="text-gray-400 text-sm">No cards added</p>}
+                </div>
+              </div>
+
+              <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                <h3 className="text-lg font-bold mb-4">Recent Transactions ({selectedUser.transactions.length})</h3>
+                <div className="space-y-3">
+                  {selectedUser.transactions.slice(0, 10).map((t: any) => (
+                    <div key={t.id} className="flex items-center justify-between p-3 rounded-2xl bg-gray-50">
+                      <div>
+                        <p className="text-sm font-bold">{t.partyName}</p>
+                        <p className="text-[10px] text-gray-500">{format(new Date(t.date), 'dd MMM yyyy')}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold">{formatCurrency(t.amount)}</p>
+                        <p className={cn("text-[10px] font-bold", t.isPaid ? "text-emerald-600" : "text-amber-600")}>
+                          {t.isPaid ? 'Settled' : 'Pending'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  {selectedUser.transactions.length === 0 && <p className="text-gray-400 text-sm">No transactions found</p>}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      ) : (
+      ) : view === 'users' ? (
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="divide-y divide-gray-100">
-            {logs.map((log, i) => (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50/50 border-b border-gray-100">
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">User</th>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Email</th>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Role</th>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredUsers.map(u => (
+                  <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-8 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                          {u.fullName ? u.fullName[0] : '?'}
+                        </div>
+                        <span className="font-bold">{u.fullName || 'No Name'}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-4 text-gray-500">{u.email}</td>
+                    <td className="px-8 py-4">
+                      <span className={cn(
+                        "px-3 py-1 rounded-full text-xs font-bold",
+                        u.role === 'admin' ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"
+                      )}>
+                        {u.role.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-8 py-4">
+                      <button 
+                        onClick={() => handleToggleVerify(u.id, u.isVerified)}
+                        className={cn(
+                          "flex items-center gap-1.5 text-xs font-bold hover:opacity-80 transition-opacity",
+                          u.isVerified ? "text-emerald-600" : "text-rose-600"
+                        )}
+                      >
+                        <div className={cn("w-1.5 h-1.5 rounded-full", u.isVerified ? "bg-emerald-600" : "bg-rose-600")} />
+                        {u.isVerified ? 'Verified' : 'Unverified'}
+                      </button>
+                    </td>
+                    <td className="px-8 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => handleViewUser(u)} className="p-2 hover:bg-blue-50 text-blue-600 rounded-2xl transition-colors" title="View Details">
+                          <Eye size={18} />
+                        </button>
+                        <button onClick={() => handleResetPassword(u.id)} className="p-2 hover:bg-amber-50 text-amber-600 rounded-2xl transition-colors" title="Reset Password">
+                          <Key size={18} />
+                        </button>
+                        <button onClick={() => handleDeleteUser(u.id)} className="p-2 hover:bg-rose-50 text-rose-600 rounded-2xl transition-colors" title="Delete Account">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredUsers.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-8 py-12 text-center text-gray-400">No users found</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : view === 'logs' ? (
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+            {filteredLogs.map((log, i) => (
               <div key={i} className="px-8 py-4 hover:bg-gray-50/50 transition-colors flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center",
+                    "w-10 h-10 rounded-2xl flex items-center justify-center",
                     log.type === 'admin' ? "bg-amber-100 text-amber-600" : 
                     log.type === 'auth' ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"
                   )}>
@@ -654,6 +885,60 @@ const AdminSection = ({ setConfirmAction }: any) => {
               <div className="p-12 text-center text-gray-400">No activity logs found</div>
             )}
           </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+           <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+             <h3 className="text-lg font-bold mb-6">User Verification Status</h3>
+             <div className="h-64">
+               <ResponsiveContainer width="100%" height="100%">
+                 <PieChart>
+                   <Pie
+                     data={[
+                       { name: 'Verified', value: stats.verifiedUsers },
+                       { name: 'Unverified', value: stats.totalUsers - stats.verifiedUsers }
+                     ]}
+                     innerRadius={60}
+                     outerRadius={80}
+                     paddingAngle={5}
+                     dataKey="value"
+                   >
+                     <Cell fill="#10b981" />
+                     <Cell fill="#f43f5e" />
+                   </Pie>
+                   <Tooltip />
+                 </PieChart>
+               </ResponsiveContainer>
+             </div>
+             <div className="flex justify-center gap-6 mt-4">
+               <div className="flex items-center gap-2">
+                 <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                 <span className="text-xs text-gray-500 font-bold">Verified</span>
+               </div>
+               <div className="flex items-center gap-2">
+                 <div className="w-3 h-3 rounded-full bg-rose-500"></div>
+                 <span className="text-xs text-gray-500 font-bold">Unverified</span>
+               </div>
+             </div>
+           </div>
+
+           <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+             <h3 className="text-lg font-bold mb-6">Activity Overview</h3>
+             <div className="space-y-6">
+               <div className="flex justify-between items-center">
+                 <span className="text-sm text-gray-500">Total Logs</span>
+                 <span className="text-lg font-bold">{stats.totalLogs}</span>
+               </div>
+               <div className="flex justify-between items-center">
+                 <span className="text-sm text-gray-500">Admin Actions</span>
+                 <span className="text-lg font-bold">{logs.filter(l => l.type === 'admin').length}</span>
+               </div>
+               <div className="flex justify-between items-center">
+                 <span className="text-sm text-gray-500">Auth Events</span>
+                 <span className="text-lg font-bold">{logs.filter(l => l.type === 'auth').length}</span>
+               </div>
+             </div>
+           </div>
         </div>
       )}
     </div>
@@ -689,7 +974,7 @@ const CreditCardUI = ({ card, transactions, onClick }: { card: Card, transaction
             </button>
           </div>
         </div>
-        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
+        <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
           <CreditCard className="w-6 h-6" />
         </div>
       </div>
@@ -895,21 +1180,21 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
             <nav className="hidden md:flex items-center gap-1 bg-gray-50 p-1 rounded-2xl">
               <button 
                 onClick={() => setActiveTab('overview')}
-                className={cn("px-4 py-2 rounded-xl text-sm font-bold transition-all", activeTab === 'overview' ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-700")}
+                className={cn("px-4 py-2 rounded-2xl text-sm font-bold transition-all", activeTab === 'overview' ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-700")}
               >
                 Overview
               </button>
               {user.role === 'admin' && (
                 <button 
                   onClick={() => setActiveTab('admin')}
-                  className={cn("px-4 py-2 rounded-xl text-sm font-bold transition-all", activeTab === 'admin' ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-700")}
+                  className={cn("px-4 py-2 rounded-2xl text-sm font-bold transition-all", activeTab === 'admin' ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-700")}
                 >
                   Admin
                 </button>
               )}
               <button 
                 onClick={() => setActiveTab('profile')}
-                className={cn("px-4 py-2 rounded-xl text-sm font-bold transition-all", activeTab === 'profile' ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-700")}
+                className={cn("px-4 py-2 rounded-2xl text-sm font-bold transition-all", activeTab === 'profile' ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-700")}
               >
                 Profile
               </button>
@@ -1143,7 +1428,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
             </div>
           </div>
         ) : activeTab === 'admin' ? (
-          <AdminSection setConfirmAction={setConfirmAction} />
+          <AdminSection user={user} setConfirmAction={setConfirmAction} />
         ) : (
           <ProfileSection user={user} setUser={setUser} />
         )}
@@ -1287,7 +1572,7 @@ const AddCardModal = ({ onClose, onAdd }: any) => {
               <div className="space-y-1">
                 <label className="text-sm font-medium text-gray-700">Card Type</label>
                 <select 
-                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl outline-none"
+                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-2xl outline-none"
                   value={form.cardType}
                   onChange={(e) => setForm({ ...form, cardType: e.target.value })}
                 >
@@ -1426,7 +1711,7 @@ const AddTransactionModal = ({ cards, parties, onAddParty, onClose, onAdd }: any
           <div className="space-y-1">
             <label className="text-sm font-medium text-gray-700">Select Card</label>
             <select 
-              className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl outline-none"
+              className="w-full px-4 py-2 bg-white border border-gray-200 rounded-2xl outline-none"
               value={form.cardId}
               onChange={(e) => setForm({ ...form, cardId: e.target.value })}
               required
@@ -1453,7 +1738,7 @@ const AddTransactionModal = ({ cards, parties, onAddParty, onClose, onAdd }: any
                 type="button"
                 onClick={() => setForm({ ...form, partyType: type as any, partyName: type === 'self' ? 'Self' : '', partyId: '' })}
                 className={cn(
-                  "py-2 px-3 rounded-xl text-xs font-bold capitalize transition-all",
+                  "py-2 px-3 rounded-2xl text-xs font-bold capitalize transition-all",
                   form.partyType === type ? "bg-primary text-white" : "bg-gray-100 text-gray-500"
                 )}
               >
@@ -1475,7 +1760,7 @@ const AddTransactionModal = ({ cards, parties, onAddParty, onClose, onAdd }: any
                 </button>
               </div>
               <select 
-                className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl outline-none"
+                className="w-full px-4 py-2 bg-white border border-gray-200 rounded-2xl outline-none"
                 value={form.partyId}
                 onChange={(e) => {
                   const party = parties.find((p: any) => p.id === e.target.value);
@@ -1495,7 +1780,7 @@ const AddTransactionModal = ({ cards, parties, onAddParty, onClose, onAdd }: any
             <div className="space-y-1">
               <label className="text-sm font-medium text-gray-700">Payment Mode</label>
               <select 
-                className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl outline-none"
+                className="w-full px-4 py-2 bg-white border border-gray-200 rounded-2xl outline-none"
                 value={form.paymentMode}
                 onChange={(e) => setForm({ ...form, paymentMode: e.target.value })}
               >
@@ -1574,7 +1859,7 @@ const AddPartyModal = ({ onClose, onAdd }: any) => {
                 type="button"
                 onClick={() => setForm({ ...form, type: type as any })}
                 className={cn(
-                  "flex-1 py-2 rounded-xl text-sm font-bold capitalize transition-all",
+                  "flex-1 py-2 rounded-2xl text-sm font-bold capitalize transition-all",
                   form.type === type ? "bg-primary text-white" : "bg-gray-100 text-gray-500"
                 )}
               >
@@ -1712,7 +1997,7 @@ const CardDetailsModal = ({ card, transactions, onClose, onUpdate }: any) => {
               <div key={t.id} className="p-4 rounded-2xl border border-gray-100 flex items-center justify-between bg-gray-50/50">
                 <div className="flex items-center gap-4">
                   <div className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center",
+                    "w-10 h-10 rounded-2xl flex items-center justify-center",
                     t.partyType === 'self' ? "bg-blue-100 text-blue-600" : 
                     t.partyType === 'individual' ? "bg-emerald-100 text-emerald-600" : "bg-orange-100 text-orange-600"
                   )}>
