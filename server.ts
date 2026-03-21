@@ -41,36 +41,32 @@ async function startServer() {
     next();
   };
 
+  // Middleware to check verified status
   const requireVerified = (req: any, res: any, next: any) => {
     const db = getDb();
     const user = db.users.find(u => u.id === req.session.userId);
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
     
+    // Strictly enforce verification for ALL users
     if (!user.isVerified) {
-      // Even admins should verify their email for security, unless it's the primary admin email
-      const adminEmails = ['sukumawa45@gmail.com', 'kumawatsumit45@gmail.com'];
-      if (!adminEmails.includes(user.email)) {
-        return res.status(403).json({ error: 'Email not verified' });
-      }
+      return res.status(403).json({ error: 'Email not verified' });
     }
     next();
   };
 
-  // Middleware to check admin
+  // Middleware to check admin status
   const isAdmin = (userId: string | undefined) => {
     if (!userId) return false;
     const db = getDb();
     const user = db.users.find(u => u.id === userId);
     if (!user) return false;
     
-    // Default admin from runtime context - strictly limited to these emails
+    // Strictly limit admin access to these specific emails and the 'admin' username
     const adminEmails = ['sukumawa45@gmail.com', 'kumawatsumit45@gmail.com'];
-    if (adminEmails.includes(user.email)) return true;
+    const isHardcodedAdmin = adminEmails.includes(user.email) || user.username === 'admin';
     
-    // Only the specific user with username 'admin' can be an admin
-    if (user.username === 'admin') return true;
-    
-    return false;
+    // Only allow admin access if they are also verified
+    return isHardcodedAdmin && user.isVerified;
   };
 
   const requireAdmin = (req: any, res: any, next: any) => {
@@ -140,6 +136,10 @@ async function startServer() {
           suffix++;
         }
       }
+    }
+
+    if (username && username.toLowerCase() === 'admin') {
+      return res.status(400).json({ error: 'Username "admin" is reserved' });
     }
 
     if (db.users.find(u => u.username === username)) {
@@ -233,16 +233,13 @@ async function startServer() {
     }
 
     if (!user.isVerified) {
-      // Even admins should verify their email for security, unless it's the primary admin email
-      const adminEmails = ['sukumawa45@gmail.com', 'kumawatsumit45@gmail.com'];
-      if (!adminEmails.includes(user.email)) {
-        return res.status(403).json({ error: 'Email not verified. Please check your inbox or resend verification email.', unverified: true });
-      }
+      // Strictly enforce verification for all users
+      return res.status(403).json({ error: 'Email not verified. Please check your inbox or resend verification email.', unverified: true });
     }
 
     req.session.userId = user.id;
     logActivity(user.id, 'LOGIN', 'User logged in', req);
-    const role = isAdmin(user.id) ? 'admin' : user.role;
+    const role = isAdmin(user.id) ? 'admin' : 'user';
     res.json({ user: { id: user.id, fullName: user.fullName, email: user.email, isVerified: user.isVerified, role } });
   });
 
@@ -270,7 +267,7 @@ async function startServer() {
     const db = getDb();
     const user = db.users.find(u => u.id === req.session.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    const role = isAdmin(user.id) ? 'admin' : user.role;
+    const role = isAdmin(user.id) ? 'admin' : 'user';
     res.json({ 
       id: user.id, 
       fullName: user.fullName, 
@@ -493,21 +490,36 @@ async function startServer() {
   // --- Party Routes ---
   app.get('/api/parties', requireAuth, requireVerified, (req: any, res) => {
     const db = getDb();
-    const parties = db.parties.filter(p => p.userId === req.session.userId);
+    const parties = db.parties.filter(p => p.userId === req.session.userId).map(p => ({
+      ...p,
+      fullName: decrypt(p.fullName),
+      email: decrypt(p.email),
+      phone: decrypt(p.phone)
+    }));
     res.json(parties);
   });
 
   app.post('/api/parties', requireAuth, requireVerified, (req: any, res) => {
     const db = getDb();
-    const newParty: Party = {
+    const partyData = {
       ...req.body,
       id: uuidv4(),
       userId: req.session.userId,
+      fullName: encrypt(req.body.fullName),
+      email: encrypt(req.body.email),
+      phone: encrypt(req.body.phone),
       createdAt: new Date().toISOString()
     };
-    db.parties.push(newParty);
+    db.parties.push(partyData);
     saveDb(db);
-    res.json(newParty);
+    
+    // Return decrypted version
+    res.json({
+      ...partyData,
+      fullName: decrypt(partyData.fullName),
+      email: decrypt(partyData.email),
+      phone: decrypt(partyData.phone)
+    });
   });
 
   // --- Card Routes ---
@@ -516,7 +528,9 @@ async function startServer() {
     const cards = db.cards.filter(c => c.userId === req.session.userId).map(c => ({
       ...c,
       cardNumber: decrypt(c.cardNumber),
-      cvv: decrypt(c.cvv)
+      cvv: decrypt(c.cvv),
+      cardholderName: decrypt(c.cardholderName),
+      expiryDate: decrypt(c.expiryDate)
     }));
     res.json(cards);
   });
@@ -524,17 +538,27 @@ async function startServer() {
   app.post('/api/cards', requireAuth, requireVerified, (req: any, res) => {
     const db = getDb();
     try {
-      const newCard: Card = {
+      const cardData = {
         ...req.body,
         id: uuidv4(),
         userId: req.session.userId,
         cardNumber: encrypt(req.body.cardNumber),
         cvv: encrypt(req.body.cvv),
+        cardholderName: encrypt(req.body.cardholderName),
+        expiryDate: encrypt(req.body.expiryDate),
         createdAt: new Date().toISOString()
       };
-      db.cards.push(newCard);
+      db.cards.push(cardData);
       saveDb(db);
-      res.json(newCard);
+      
+      // Return decrypted version to client
+      res.json({
+        ...cardData,
+        cardNumber: decrypt(cardData.cardNumber),
+        cvv: decrypt(cardData.cvv),
+        cardholderName: decrypt(cardData.cardholderName),
+        expiryDate: decrypt(cardData.expiryDate)
+      });
     } catch (e) {
       res.status(500).json({ error: 'Failed to save card' });
     }
@@ -551,7 +575,10 @@ async function startServer() {
   // --- Transaction Routes ---
   app.get('/api/transactions', requireAuth, requireVerified, (req: any, res) => {
     const db = getDb();
-    const transactions = db.transactions.filter(t => t.userId === req.session.userId);
+    const transactions = db.transactions.filter(t => t.userId === req.session.userId).map(t => ({
+      ...t,
+      description: decrypt(t.description)
+    }));
     res.json(transactions);
   });
 
@@ -561,15 +588,21 @@ async function startServer() {
     const card = db.cards.find(c => c.id === req.body.cardId && c.userId === req.session.userId);
     if (!card) return res.status(400).json({ error: 'Invalid card selected' });
 
-    const newTransaction: Transaction = {
+    const transactionData = {
       ...req.body,
       id: uuidv4(),
       userId: req.session.userId,
+      description: encrypt(req.body.description),
       createdAt: new Date().toISOString()
     };
-    db.transactions.push(newTransaction);
+    db.transactions.push(transactionData);
     saveDb(db);
-    res.json(newTransaction);
+    
+    // Return decrypted version
+    res.json({
+      ...transactionData,
+      description: decrypt(transactionData.description)
+    });
   });
 
   app.post('/api/settle/:id', requireAuth, requireVerified, (req: any, res) => {

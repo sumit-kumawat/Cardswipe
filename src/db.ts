@@ -41,6 +41,7 @@ export interface Transaction {
   amount: number;
   partyType: 'self' | 'individual' | 'business';
   partyName: string;
+  description: string; // Encrypted
   partyDetails?: string;
   paymentMode: 'cash' | 'upi' | 'bank_transfer';
   date: string;
@@ -55,10 +56,11 @@ export interface Party {
   id: string;
   userId: string;
   type: 'individual' | 'business';
+  fullName: string; // Encrypted
   firstName: string;
   lastName: string;
-  phone: string;
-  email?: string;
+  phone: string; // Encrypted
+  email: string; // Encrypted
   businessName?: string;
   gstNumber?: string;
   createdAt: string;
