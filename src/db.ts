@@ -40,11 +40,12 @@ export interface Transaction {
   userId: string;
   cardId: string;
   amount: number;
+  type: 'spend' | 'payment';
   partyType: 'self' | 'individual' | 'business';
   partyName: string;
   description: string; // Encrypted
   partyDetails?: string;
-  paymentMode: 'cash' | 'upi' | 'bank_transfer';
+  paymentMode: 'cash' | 'upi' | 'bank_transfer' | 'cred';
   date: string;
   partyDueDate?: string;
   notes?: string;
