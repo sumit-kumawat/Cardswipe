@@ -28,6 +28,7 @@ import {
   Key,
   Shield,
   ShieldCheck,
+  ShieldAlert,
   Lock,
   Activity,
   TrendingUp,
@@ -107,7 +108,7 @@ const Button = ({ className, variant = 'primary', ...props }: any) => {
   return (
     <button 
       className={cn(
-        'px-6 py-2.5 rounded-2xl font-bold text-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2', 
+        'px-6 py-2.5 rounded-[10px] font-bold text-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2', 
         variants[variant], 
         className
       )} 
@@ -127,9 +128,10 @@ const Input = ({ label, error, icon: Icon, ...props }: any) => (
       )}
       <input 
         className={cn(
-          "w-full px-4 py-3 bg-white border border-[#e9edef] rounded-2xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm placeholder:text-[#8696a0]",
+          "w-full px-4 py-3 bg-white border border-[#e9edef] rounded-[10px] focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm placeholder:text-[#8696a0]",
           Icon && "pl-11",
-          error && "border-rose-500 ring-rose-200"
+          error && "border-rose-500 ring-rose-200",
+          props.type === 'date' && "appearance-none cursor-pointer"
         )} 
         {...props} 
       />
@@ -142,7 +144,7 @@ const Select = ({ label, options, ...props }: any) => (
   <div className="space-y-1.5 w-full">
     {label && <label className="text-xs font-bold text-[#667781] uppercase tracking-wider ml-1">{label}</label>}
     <select 
-      className="w-full px-4 py-3 bg-white border border-[#e9edef] rounded-2xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm text-[#54656f]"
+      className="w-full px-4 py-3 bg-white border border-[#e9edef] rounded-[10px] focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm text-[#54656f]"
       {...props}
     >
       {options.map((opt: any) => (
@@ -161,13 +163,13 @@ const StatCard = ({ title, value, icon, trend, color }: any) => {
   };
   
   return (
-    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between h-full hover:shadow-md transition-shadow">
+    <div className="bg-white p-6 rounded-[10px] shadow-sm border border-gray-100 flex flex-col justify-between h-full hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-4">
-        <div className={cn("p-3 rounded-2xl", colors[color] || colors.blue)}>
+        <div className={cn("p-3 rounded-[10px]", colors[color] || colors.blue)}>
           {icon}
         </div>
         {trend && (
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 px-2 py-1 rounded-lg">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 px-2 py-1 rounded-[10px]">
             {trend}
           </span>
         )}
@@ -185,10 +187,11 @@ const SidebarItem = ({ icon, label, active, collapsed, onClick }: any) => {
     <button
       onClick={onClick}
       className={cn(
-        "w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group relative",
+        "w-full flex items-center gap-3 p-3 rounded-[10px] transition-all duration-200 group relative",
         active 
           ? "bg-[#202C33] text-white shadow-lg" 
-          : "text-[#AEBAC1] hover:bg-[#202C33] hover:text-white"
+          : "text-[#AEBAC1] hover:bg-[#202C33] hover:text-white",
+        collapsed && "justify-center px-0"
       )}
     >
       <div className={cn(
@@ -201,7 +204,7 @@ const SidebarItem = ({ icon, label, active, collapsed, onClick }: any) => {
         <span className="text-sm font-bold truncate">{label}</span>
       )}
       {collapsed && (
-        <div className="absolute left-full ml-4 px-2 py-1 bg-[#202C33] text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap">
+        <div className="absolute left-full ml-4 px-2 py-1 bg-[#202C33] text-white text-xs rounded-[10px] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap">
           {label}
         </div>
       )}
@@ -212,7 +215,7 @@ const SidebarItem = ({ icon, label, active, collapsed, onClick }: any) => {
 // --- Pages ---
 
 const Login = ({ onLogin }: any) => {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
@@ -227,7 +230,7 @@ const Login = ({ onLogin }: any) => {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ identifier, password })
       });
       const data = await res.json();
       if (res.ok) {
@@ -236,7 +239,7 @@ const Login = ({ onLogin }: any) => {
         navigate('/');
       } else {
         if (data.unverified) {
-          setUnverifiedEmail(email);
+          setUnverifiedEmail(identifier);
         }
         toast.error(data.error || 'Login failed');
       }
@@ -277,7 +280,7 @@ const Login = ({ onLogin }: any) => {
       const res = await fetch('/api/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ identifier })
       });
       const data = await res.json();
       if (res.ok) {
@@ -299,23 +302,23 @@ const Login = ({ onLogin }: any) => {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-[#e9edef]"
+          className="max-w-md w-full bg-white p-10 rounded-[10px] shadow-xl border border-[#e9edef]"
         >
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-[10px] flex items-center justify-center mx-auto mb-4">
               <Key size={32} />
             </div>
             <h1 className="text-2xl font-bold text-[#111b21]">Forgot Password</h1>
-            <p className="text-[#667781] mt-2 text-sm">Enter your email to receive reset instructions</p>
+            <p className="text-[#667781] mt-2 text-sm">Enter your email or username to receive reset instructions</p>
           </div>
           <form onSubmit={handleForgot} className="space-y-4">
             <Input 
-              label="Email Address" 
-              type="email" 
+              label="Email or Username" 
+              type="text" 
               icon={User}
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e: any) => setEmail(e.target.value)}
+              placeholder="Enter your email or username"
+              value={identifier}
+              onChange={(e: any) => setIdentifier(e.target.value)}
               required
             />
             <Button className="w-full py-3.5" disabled={loading}>
@@ -335,10 +338,10 @@ const Login = ({ onLogin }: any) => {
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-[#e9edef]"
+        className="max-w-md w-full bg-white p-10 rounded-[10px] shadow-xl border border-[#e9edef]"
       >
         <div className="mb-8 flex flex-col items-center">
-          <div className="w-20 h-20 bg-primary rounded-3xl flex items-center justify-center text-white shadow-lg shadow-primary/20 mb-4">
+          <div className="w-20 h-20 bg-primary rounded-[10px] flex items-center justify-center text-white shadow-lg shadow-primary/20 mb-4">
             <CreditCard className="w-10 h-10" />
           </div>
           <h1 className="text-3xl font-bold text-[#111b21] tracking-tight">CardSwipe</h1>
@@ -347,12 +350,12 @@ const Login = ({ onLogin }: any) => {
 
         <form onSubmit={handleSubmit} className="space-y-5 text-left">
           <Input 
-            label="Email Address" 
-            type="email" 
+            label="Email or Username" 
+            type="text" 
             icon={User}
-            placeholder="Enter your email"
-            value={email}
-            onChange={(e: any) => setEmail(e.target.value)}
+            placeholder="Enter your email or username"
+            value={identifier}
+            onChange={(e: any) => setIdentifier(e.target.value)}
             required
           />
           <Input 
@@ -365,7 +368,7 @@ const Login = ({ onLogin }: any) => {
             required
           />
           
-          <Button className="w-full py-4 rounded-2xl text-lg font-bold shadow-lg shadow-primary/20" disabled={loading}>
+          <Button className="w-full py-4 rounded-[10px] text-lg font-bold shadow-lg shadow-primary/20" disabled={loading}>
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
           
@@ -373,7 +376,7 @@ const Login = ({ onLogin }: any) => {
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-4 bg-amber-50 rounded-2xl border border-amber-100 text-center"
+              className="p-4 bg-amber-50 rounded-[10px] border border-amber-100 text-center"
             >
               <p className="text-xs text-amber-800 mb-3 font-bold flex items-center justify-center gap-2">
                 <AlertCircle className="w-4 h-4" />
@@ -382,7 +385,7 @@ const Login = ({ onLogin }: any) => {
               <Button 
                 type="button"
                 variant="secondary" 
-                className="w-full py-2 text-[10px] font-bold rounded-xl uppercase tracking-wider"
+                className="w-full py-2 text-[10px] font-bold rounded-[10px] uppercase tracking-wider"
                 onClick={handleResend}
                 disabled={loading}
               >
@@ -413,7 +416,7 @@ const Login = ({ onLogin }: any) => {
 };
 
 const Register = () => {
-  const [form, setForm] = useState({ fullName: '', email: '', password: '' });
+  const [form, setForm] = useState({ fullName: '', email: '', username: '', password: '' });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -445,10 +448,10 @@ const Register = () => {
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-[#e9edef]"
+        className="max-w-md w-full bg-white p-10 rounded-[10px] shadow-xl border border-[#e9edef]"
       >
         <div className="mb-8 flex flex-col items-center">
-          <div className="w-20 h-20 bg-primary rounded-3xl flex items-center justify-center text-white shadow-lg shadow-primary/20 mb-4">
+          <div className="w-20 h-20 bg-primary rounded-[10px] flex items-center justify-center text-white shadow-lg shadow-primary/20 mb-4">
             <UserPlus className="w-10 h-10" />
           </div>
           <h1 className="text-3xl font-bold text-[#111b21] tracking-tight">Join CardSwipe</h1>
@@ -463,6 +466,13 @@ const Register = () => {
             value={form.fullName}
             onChange={(e: any) => setForm({ ...form, fullName: e.target.value })}
             required
+          />
+          <Input 
+            label="Username (Optional)" 
+            placeholder="johndoe"
+            icon={Shield}
+            value={form.username}
+            onChange={(e: any) => setForm({ ...form, username: e.target.value })}
           />
           <Input 
             label="Email Address" 
@@ -483,7 +493,7 @@ const Register = () => {
             required
           />
           
-          <Button className="w-full py-4 rounded-2xl text-lg font-bold shadow-lg shadow-primary/20" disabled={loading}>
+          <Button className="w-full py-4 rounded-[10px] text-lg font-bold shadow-lg shadow-primary/20" disabled={loading}>
             {loading ? 'Creating account...' : 'Create Account'}
           </Button>
         </form>
@@ -503,10 +513,10 @@ const ConfirmModal = ({ title, message, onConfirm, onCancel, confirmText = 'Conf
     <motion.div 
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl text-center border border-[#e9edef]"
+      className="bg-white w-full max-w-md rounded-[10px] p-8 shadow-2xl text-center border border-[#e9edef]"
     >
       <div className={cn(
-        "w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6",
+        "w-16 h-16 rounded-[10px] flex items-center justify-center mx-auto mb-6",
         confirmVariant === 'danger' ? "bg-rose-100 text-rose-600" : "bg-amber-100 text-amber-600"
       )}>
         <AlertCircle size={32} />
@@ -584,14 +594,14 @@ const ProfileSection = ({ user, setUser }: any) => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
-      <div className="bg-white p-8 rounded-3xl border border-[#e9edef] shadow-sm flex flex-col items-center text-center">
-        <div className="w-24 h-24 rounded-full bg-primary/10 text-primary flex items-center justify-center text-3xl font-bold mb-4 border-4 border-white shadow-lg">
+      <div className="bg-white p-8 rounded-[10px] border border-[#e9edef] shadow-sm flex flex-col items-center text-center">
+        <div className="w-24 h-24 rounded-[10px] bg-primary/10 text-primary flex items-center justify-center text-3xl font-bold mb-4 border-4 border-white shadow-lg">
           {user.fullName[0]}
         </div>
         <h2 className="text-2xl font-bold text-[#111b21]">{user.fullName}</h2>
         <p className="text-[#667781] text-sm mb-4">{user.email}</p>
         <span className={cn(
-          "px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+          "px-4 py-1 rounded-[10px] text-xs font-bold uppercase tracking-wider",
           user.isVerified ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"
         )}>
           {user.isVerified ? 'Verified Account' : 'Unverified Account'}
@@ -599,9 +609,9 @@ const ProfileSection = ({ user, setUser }: any) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-white p-8 rounded-3xl border border-[#e9edef] shadow-sm">
+        <div className="bg-white p-8 rounded-[10px] border border-[#e9edef] shadow-sm">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-primary/10 text-primary rounded-xl">
+            <div className="p-2 bg-primary/10 text-primary rounded-[10px]">
               <User size={20} />
             </div>
             <h3 className="text-lg font-bold text-[#111b21]">Personal Info</h3>
@@ -613,9 +623,9 @@ const ProfileSection = ({ user, setUser }: any) => {
           </form>
         </div>
 
-        <div className="bg-white p-8 rounded-3xl border border-[#e9edef] shadow-sm">
+        <div className="bg-white p-8 rounded-[10px] border border-[#e9edef] shadow-sm">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-amber-100 text-amber-600 rounded-xl">
+            <div className="p-2 bg-amber-100 text-amber-600 rounded-[10px]">
               <Lock size={20} />
             </div>
             <h3 className="text-lg font-bold text-[#111b21]">Security</h3>
@@ -628,9 +638,9 @@ const ProfileSection = ({ user, setUser }: any) => {
         </div>
       </div>
 
-      <div className="bg-white p-8 rounded-3xl border border-[#e9edef] shadow-sm">
+      <div className="bg-white p-8 rounded-[10px] border border-[#e9edef] shadow-sm">
         <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
+          <div className="p-2 bg-blue-100 text-blue-600 rounded-[10px]">
             <Activity size={20} />
           </div>
           <h3 className="text-lg font-bold text-[#111b21]">Change Email</h3>
@@ -648,6 +658,15 @@ const ProfileSection = ({ user, setUser }: any) => {
 };
 
 const AdminSection = ({ user, setConfirmAction }: any) => {
+  if (user.role !== 'admin') {
+    return (
+      <div className="bg-white p-12 rounded-[10px] shadow-sm border border-gray-100 text-center">
+        <ShieldAlert className="w-16 h-16 mx-auto mb-4 text-red-500" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+        <p className="text-gray-500">You do not have administrative privileges to access this section.</p>
+      </div>
+    );
+  }
   const [users, setUsers] = useState<UserData[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -696,16 +715,6 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
       setLoading(false);
     }
   };
-
-  if (user?.role !== 'admin') {
-    return (
-      <div className="p-12 text-center bg-white rounded-3xl border border-gray-100">
-        <Shield className="w-12 h-12 mx-auto mb-4 text-rose-500" />
-        <h2 className="text-2xl font-bold">Access Denied</h2>
-        <p className="text-gray-500">You do not have permission to view this section.</p>
-      </div>
-    );
-  }
 
   const filteredUsers = users.filter(u => 
     u.fullName?.toLowerCase().includes(search.toLowerCase()) || 
@@ -806,10 +815,10 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
           { label: 'Admins', value: stats.admins, icon: Shield, color: 'amber' },
           { label: 'System Logs', value: stats.totalLogs, icon: Activity, color: 'slate' },
         ].map((stat, i) => (
-          <div key={i} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+          <div key={i} className="bg-white p-6 rounded-[10px] border border-gray-100 shadow-sm">
             <div className="flex items-center gap-4">
               <div className={cn(
-                "w-12 h-12 rounded-2xl flex items-center justify-center",
+                "w-12 h-12 rounded-[10px] flex items-center justify-center",
                 stat.color === 'blue' ? "bg-blue-50 text-blue-600" :
                 stat.color === 'emerald' ? "bg-emerald-50 text-emerald-600" :
                 stat.color === 'amber' ? "bg-amber-50 text-amber-600" : "bg-slate-50 text-slate-600"
@@ -826,22 +835,22 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
       </div>
 
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex gap-2 bg-gray-100 p-1 rounded-2xl w-full md:w-auto">
+        <div className="flex gap-2 bg-gray-100 p-1 rounded-[10px] w-full md:w-auto">
           <button 
             onClick={() => setView('users')}
-            className={cn("flex-1 md:flex-none px-6 py-2 rounded-2xl text-sm font-bold transition-all", view === 'users' ? "bg-white text-primary shadow-sm" : "text-gray-500")}
+            className={cn("flex-1 md:flex-none px-6 py-2 rounded-[10px] text-sm font-bold transition-all", view === 'users' ? "bg-white text-primary shadow-sm" : "text-gray-500")}
           >
             Users
           </button>
           <button 
             onClick={() => setView('logs')}
-            className={cn("flex-1 md:flex-none px-6 py-2 rounded-2xl text-sm font-bold transition-all", view === 'logs' ? "bg-white text-primary shadow-sm" : "text-gray-500")}
+            className={cn("flex-1 md:flex-none px-6 py-2 rounded-[10px] text-sm font-bold transition-all", view === 'logs' ? "bg-white text-primary shadow-sm" : "text-gray-500")}
           >
             Logs
           </button>
           <button 
             onClick={() => setView('stats')}
-            className={cn("flex-1 md:flex-none px-6 py-2 rounded-2xl text-sm font-bold transition-all", view === 'stats' ? "bg-white text-primary shadow-sm" : "text-gray-500")}
+            className={cn("flex-1 md:flex-none px-6 py-2 rounded-[10px] text-sm font-bold transition-all", view === 'stats' ? "bg-white text-primary shadow-sm" : "text-gray-500")}
           >
             Stats
           </button>
@@ -855,7 +864,7 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
               placeholder={`Search ${view}...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-[10px] outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm"
             />
           </div>
           {view === 'logs' && (
@@ -867,7 +876,7 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
       {selectedUser ? (
         <div className="space-y-6">
           <div className="flex items-center gap-4">
-            <Button variant="secondary" onClick={() => setSelectedUser(null)} className="p-2 rounded-2xl">
+            <Button variant="secondary" onClick={() => setSelectedUser(null)} className="p-2 rounded-[10px]">
               <X size={20} />
             </Button>
             <h2 className="text-2xl font-bold">User Details: {selectedUser.fullName}</h2>
@@ -875,17 +884,17 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-1 space-y-6">
-              <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+              <div className="bg-white p-8 rounded-[10px] border border-gray-100 shadow-sm">
                 <div className="flex flex-col items-center text-center mb-6">
-                  <div className="w-20 h-20 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold mb-4">
+                  <div className="w-20 h-20 rounded-[10px] bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold mb-4">
                     {selectedUser.fullName[0]}
                   </div>
                   <h3 className="text-xl font-bold">{selectedUser.fullName}</h3>
                   <p className="text-gray-500">{selectedUser.email}</p>
                   <div className="mt-4 flex gap-2">
-                    <span className="px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-bold uppercase">{selectedUser.role}</span>
+                    <span className="px-3 py-1 bg-blue-100 text-blue-600 rounded-[10px] text-xs font-bold uppercase">{selectedUser.role}</span>
                     <span className={cn(
-                      "px-3 py-1 rounded-full text-xs font-bold uppercase",
+                      "px-3 py-1 rounded-[10px] text-xs font-bold uppercase",
                       selectedUser.isVerified ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"
                     )}>
                       {selectedUser.isVerified ? 'Verified' : 'Unverified'}
@@ -893,13 +902,13 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
                   </div>
                 </div>
                 <div className="space-y-4 pt-6 border-t border-gray-100">
-                  <Button variant="secondary" className="w-full justify-start gap-2 rounded-2xl" onClick={() => handleToggleAdmin(selectedUser.id, selectedUser.role)}>
+                  <Button variant="secondary" className="w-full justify-start gap-2 rounded-[10px]" onClick={() => handleToggleAdmin(selectedUser.id, selectedUser.role)}>
                     <Shield size={18} /> {selectedUser.role === 'admin' ? 'Demote to User' : 'Promote to Admin'}
                   </Button>
-                  <Button variant="secondary" className="w-full justify-start gap-2 rounded-2xl" onClick={() => handleResetPassword(selectedUser.id)}>
+                  <Button variant="secondary" className="w-full justify-start gap-2 rounded-[10px]" onClick={() => handleResetPassword(selectedUser.id)}>
                     <Key size={18} /> Reset Password
                   </Button>
-                  <Button variant="danger" className="w-full justify-start gap-2 rounded-2xl" onClick={() => handleDeleteUser(selectedUser.id)}>
+                  <Button variant="danger" className="w-full justify-start gap-2 rounded-[10px]" onClick={() => handleDeleteUser(selectedUser.id)}>
                     <Trash2 size={18} /> Delete Account
                   </Button>
                 </div>
@@ -907,11 +916,11 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
             </div>
 
             <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+              <div className="bg-white p-8 rounded-[10px] border border-gray-100 shadow-sm">
                 <h3 className="text-lg font-bold mb-4">Cards ({selectedUser.cards.length})</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {selectedUser.cards.map((c: any) => (
-                    <div key={c.id} className={cn("p-4 rounded-2xl text-white", c.theme)}>
+                    <div key={c.id} className={cn("p-4 rounded-[10px] text-white", c.theme)}>
                       <p className="text-xs font-bold opacity-80 uppercase tracking-widest">{c.cardType}</p>
                       <p className="text-lg font-bold mt-2">•••• •••• •••• {c.cardNumber.slice(-4)}</p>
                       <div className="flex justify-between mt-4">
@@ -924,11 +933,11 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
                 </div>
               </div>
 
-              <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+              <div className="bg-white p-8 rounded-[10px] border border-gray-100 shadow-sm">
                 <h3 className="text-lg font-bold mb-4">Recent Transactions ({selectedUser.transactions.length})</h3>
                 <div className="space-y-3">
                   {selectedUser.transactions.slice(0, 10).map((t: any) => (
-                    <div key={t.id} className="flex items-center justify-between p-3 rounded-2xl bg-gray-50">
+                    <div key={t.id} className="flex items-center justify-between p-3 rounded-[10px] bg-gray-50">
                       <div>
                         <p className="text-sm font-bold">{t.partyName}</p>
                         <p className="text-[10px] text-gray-500">{format(new Date(t.date), 'dd MMM yyyy')}</p>
@@ -948,7 +957,7 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
           </div>
         </div>
       ) : view === 'users' ? (
-        <div className="bg-white rounded-3xl border border-[#e9edef] shadow-sm overflow-hidden">
+        <div className="bg-white rounded-[10px] border border-[#e9edef] shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -965,7 +974,7 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
                   <tr key={u.id} className="hover:bg-[#f0f2f5]/50 transition-colors">
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold border border-primary/20">
+                        <div className="w-10 h-10 rounded-[10px] bg-primary/10 text-primary flex items-center justify-center font-bold border border-primary/20">
                           {u.fullName ? u.fullName[0] : '?'}
                         </div>
                         <span className="font-bold text-[#111b21]">{u.fullName || 'No Name'}</span>
@@ -974,7 +983,7 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
                     <td className="px-8 py-5 text-[#667781] text-sm">{u.email}</td>
                     <td className="px-8 py-5">
                       <span className={cn(
-                        "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                        "px-3 py-1 rounded-[10px] text-[10px] font-bold uppercase tracking-wider",
                         u.role === 'admin' ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"
                       )}>
                         {u.role}
@@ -988,22 +997,22 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
                           u.isVerified ? "text-emerald-600" : "text-rose-600"
                         )}
                       >
-                        <div className={cn("w-2 h-2 rounded-full", u.isVerified ? "bg-emerald-600 shadow-[0_0_8px_rgba(16,185,129,0.4)]" : "bg-rose-600 shadow-[0_0_8px_rgba(244,63,94,0.4)]")} />
+                        <div className={cn("w-2 h-2 rounded-[10px]", u.isVerified ? "bg-emerald-600 shadow-[0_0_8px_rgba(16,185,129,0.4)]" : "bg-rose-600 shadow-[0_0_8px_rgba(244,63,94,0.4)]")} />
                         {u.isVerified ? 'Verified' : 'Unverified'}
                       </button>
                     </td>
                     <td className="px-8 py-5 text-right">
                       <div className="flex justify-end gap-1">
-                        <button onClick={() => handleToggleAdmin(u.id, u.role)} className="p-2 hover:bg-amber-50 text-amber-600 rounded-xl transition-colors" title={u.role === 'admin' ? "Demote to User" : "Promote to Admin"}>
+                        <button onClick={() => handleToggleAdmin(u.id, u.role)} className="p-2 hover:bg-amber-50 text-amber-600 rounded-[10px] transition-colors" title={u.role === 'admin' ? "Demote to User" : "Promote to Admin"}>
                           <Shield size={18} />
                         </button>
-                        <button onClick={() => handleViewUser(u)} className="p-2 hover:bg-blue-50 text-blue-600 rounded-xl transition-colors" title="View Details">
+                        <button onClick={() => handleViewUser(u)} className="p-2 hover:bg-blue-50 text-blue-600 rounded-[10px] transition-colors" title="View Details">
                           <Eye size={18} />
                         </button>
-                        <button onClick={() => handleResetPassword(u.id)} className="p-2 hover:bg-amber-50 text-amber-600 rounded-xl transition-colors" title="Reset Password">
+                        <button onClick={() => handleResetPassword(u.id)} className="p-2 hover:bg-amber-50 text-amber-600 rounded-[10px] transition-colors" title="Reset Password">
                           <Key size={18} />
                         </button>
-                        <button onClick={() => handleDeleteUser(u.id)} className="p-2 hover:bg-rose-50 text-rose-600 rounded-xl transition-colors" title="Delete Account">
+                        <button onClick={() => handleDeleteUser(u.id)} className="p-2 hover:bg-rose-50 text-rose-600 rounded-[10px] transition-colors" title="Delete Account">
                           <Trash2 size={18} />
                         </button>
                       </div>
@@ -1020,13 +1029,13 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
           </div>
         </div>
       ) : view === 'logs' ? (
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-[10px] border border-gray-100 shadow-sm overflow-hidden">
           <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
             {filteredLogs.map((log, i) => (
               <div key={i} className="px-8 py-4 hover:bg-gray-50/50 transition-colors flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className={cn(
-                    "w-10 h-10 rounded-2xl flex items-center justify-center",
+                    "w-10 h-10 rounded-[10px] flex items-center justify-center",
                     log.type === 'admin' ? "bg-amber-100 text-amber-600" : 
                     log.type === 'auth' ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"
                   )}>
@@ -1052,7 +1061,7 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-           <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+           <div className="bg-white p-8 rounded-[10px] border border-gray-100 shadow-sm">
              <h3 className="text-lg font-bold mb-6">User Verification Status</h3>
              <div className="h-64">
                <ResponsiveContainer width="100%" height="100%">
@@ -1076,17 +1085,17 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
              </div>
              <div className="flex justify-center gap-6 mt-4">
                <div className="flex items-center gap-2">
-                 <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                 <div className="w-3 h-3 rounded-[10px] bg-emerald-500"></div>
                  <span className="text-xs text-gray-500 font-bold">Verified</span>
                </div>
                <div className="flex items-center gap-2">
-                 <div className="w-3 h-3 rounded-full bg-rose-500"></div>
+                 <div className="w-3 h-3 rounded-[10px] bg-rose-500"></div>
                  <span className="text-xs text-gray-500 font-bold">Unverified</span>
                </div>
              </div>
            </div>
 
-           <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+           <div className="bg-white p-8 rounded-[10px] border border-gray-100 shadow-sm">
              <h3 className="text-lg font-bold mb-6">Activity Overview</h3>
              <div className="space-y-6">
                <div className="flex justify-between items-center">
@@ -1119,7 +1128,7 @@ const CreditCardUI = ({ card, transactions, onClick }: { card: Card, transaction
       layoutId={card.id}
       onClick={onClick}
       className={cn(
-        "relative overflow-hidden p-8 rounded-3xl text-white cursor-pointer shadow-2xl transition-all hover:scale-[1.02] hover:shadow-primary/20",
+        "relative overflow-hidden p-8 rounded-[10px] text-white cursor-pointer shadow-2xl transition-all hover:scale-[1.02] hover:shadow-primary/20",
         card.theme || "bg-primary"
       )}
     >
@@ -1132,13 +1141,13 @@ const CreditCardUI = ({ card, transactions, onClick }: { card: Card, transaction
             </p>
             <button 
               onClick={(e) => { e.stopPropagation(); setShowFullNumber(!showFullNumber); }} 
-              className="p-1 hover:bg-white/20 rounded-lg"
+              className="p-1 hover:bg-white/20 rounded-[10px]"
             >
               {showFullNumber ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
           </div>
         </div>
-        <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
+        <div className="w-10 h-10 bg-white/20 rounded-[10px] flex items-center justify-center backdrop-blur-md">
           <CreditCard className="w-6 h-6" />
         </div>
       </div>
@@ -1148,7 +1157,7 @@ const CreditCardUI = ({ card, transactions, onClick }: { card: Card, transaction
           <span>Used: {formatCurrency(cardUsed)}</span>
           <span>Limit: {formatCurrency(card.limit)}</span>
         </div>
-        <div className="h-3 bg-white/20 rounded-full overflow-hidden">
+        <div className="h-3 bg-white/20 rounded-[10px] overflow-hidden">
           <motion.div 
             initial={{ width: 0 }}
             animate={{ width: `${percent}%` }}
@@ -1304,7 +1313,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
   if (!user.isVerified && user.role !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="max-w-md w-full bg-white p-10 rounded-3xl shadow-2xl text-center border border-gray-100">
+        <div className="max-w-md w-full bg-white p-10 rounded-[10px] shadow-2xl text-center border border-gray-100">
           <div className="mb-6 flex justify-center">
             <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="CardSwipe Logo" className="w-16 h-16" referrerPolicy="no-referrer" />
           </div>
@@ -1315,13 +1324,13 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
             <Button 
               onClick={checkVerificationStatus} 
               disabled={refreshing}
-              className="bg-primary hover:bg-primary/90 text-white rounded-2xl py-3 h-auto font-bold"
+              className="bg-primary hover:bg-primary/90 text-white rounded-[10px] py-3 h-auto font-bold"
             >
               {refreshing ? 'Checking...' : "I've Verified"}
             </Button>
             <Button 
               variant="secondary" 
-              className="rounded-2xl py-3 h-auto font-medium"
+              className="rounded-[10px] py-3 h-auto font-medium"
               onClick={async () => {
               try {
                 const res = await fetch('/api/resend-verification', { method: 'POST' });
@@ -1334,7 +1343,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
             }}>Resend Verification Email</Button>
             <Button 
               variant="ghost" 
-              className="rounded-2xl py-3 h-auto font-medium"
+              className="rounded-[10px] py-3 h-auto font-medium"
               onClick={async () => {
               await fetch('/api/logout', { method: 'POST' });
               window.location.href = '/login';
@@ -1350,17 +1359,17 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
       {/* WhatsApp-style Sidebar */}
       <aside 
         className={cn(
-          "bg-[#111B21] text-[#AEBAC1] flex flex-col transition-all duration-300 z-50",
-          isSidebarCollapsed ? "w-16" : "w-64",
+          "bg-[#111B21] text-[#AEBAC1] flex flex-col transition-all duration-300 z-50 overflow-hidden",
+          isSidebarCollapsed ? "w-[72px]" : "w-64",
           "hidden md:flex"
         )}
       >
-        <div className="p-4 flex items-center gap-3 border-b border-[#202C33] h-16">
-          <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="Logo" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
-          {!isSidebarCollapsed && <span className="font-bold text-white text-lg tracking-tight">CardSwipe</span>}
+        <div className="p-4 flex items-center gap-3 border-b border-[#202C33] h-16 overflow-hidden">
+          <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="Logo" className="w-8 h-8 rounded-[10px] flex-shrink-0" referrerPolicy="no-referrer" />
+          {!isSidebarCollapsed && <span className="font-bold text-white text-lg tracking-tight truncate">CardSwipe</span>}
         </div>
 
-        <div className="flex-1 py-4 overflow-y-auto space-y-1 px-2">
+        <div className="flex-1 py-4 overflow-y-auto overflow-x-hidden space-y-1 px-2 scrollbar-hide">
           <SidebarItem 
             icon={<LayoutDashboard size={20} />} 
             label="Overview" 
@@ -1409,7 +1418,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
           />
           <button 
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="w-full flex items-center justify-center p-3 hover:bg-[#202C33] rounded-xl transition-colors mt-2"
+            className="w-full flex items-center justify-center p-3 hover:bg-[#202C33] rounded-[10px] transition-colors mt-2"
           >
             {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
@@ -1421,7 +1430,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
         {/* Top Header */}
         <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 sticky top-0 z-40">
           <div className="flex items-center gap-4">
-            <button className="md:hidden p-2 hover:bg-gray-100 rounded-xl" onClick={() => setShowMobileMenu(true)}>
+            <button className="md:hidden p-2 hover:bg-gray-100 rounded-[10px]" onClick={() => setShowMobileMenu(true)}>
               <Menu size={20} />
             </button>
             <h1 className="text-xl font-bold text-gray-800 capitalize">
@@ -1432,8 +1441,8 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 bg-gray-50 px-3 py-1.5 rounded-2xl border border-gray-100">
-              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-xs">
+            <div className="flex items-center gap-3 bg-gray-50 px-3 py-1.5 rounded-[10px] border border-gray-100">
+              <div className="w-8 h-8 bg-primary/10 rounded-[10px] flex items-center justify-center text-primary font-bold text-xs">
                 {user.fullName.charAt(0)}
               </div>
               <div className="hidden sm:block text-left leading-tight">
@@ -1475,17 +1484,49 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Cards Section */}
                   <div className="lg:col-span-2 space-y-6">
+                    {/* Chart Section - MOVED UP */}
+                    <div className="bg-white p-8 rounded-[10px] shadow-sm border border-gray-100">
+                      <div className="flex justify-between items-center mb-8">
+                        <h3 className="text-lg font-bold text-gray-900">Spending Trends</h3>
+                        <div className="flex gap-2">
+                          <span className="flex items-center gap-1 text-xs font-bold text-gray-400">
+                            <div className="w-2 h-2 rounded-[10px] bg-primary" /> Last 7 Days
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={spendingData}>
+                            <defs>
+                              <linearGradient id="colorAmt" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#4185F4" stopOpacity={0.1}/>
+                                <stop offset="95%" stopColor="#4185F4" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94A3B8' }} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94A3B8' }} tickFormatter={(v) => `₹${v}`} />
+                            <Tooltip 
+                              contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                              formatter={(value: number) => [formatCurrency(value), 'Amount']}
+                            />
+                            <Area type="monotone" dataKey="amount" stroke="#4185F4" strokeWidth={3} fillOpacity={1} fill="url(#colorAmt)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Cards Section - MOVED DOWN */}
                     <div className="flex justify-between items-center">
                       <h2 className="text-2xl font-bold text-gray-900">My Cards</h2>
-                      <Button onClick={() => setShowAddCard(true)} className="rounded-2xl gap-2 bg-primary hover:bg-primary/90">
+                      <Button onClick={() => setShowAddCard(true)} className="rounded-[10px] gap-2 bg-primary hover:bg-primary/90">
                         <Plus size={18} /> Add Card
                       </Button>
                     </div>
                     
                     {cards.length === 0 ? (
-                      <div className="bg-white p-12 rounded-3xl border-2 border-dashed border-gray-200 text-center">
+                      <div className="bg-white p-12 rounded-[10px] border-2 border-dashed border-gray-200 text-center">
                         <CreditCard className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                         <p className="text-gray-500 font-medium">No cards added yet. Add your first card to start tracking.</p>
                       </div>
@@ -1501,56 +1542,24 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                         ))}
                       </div>
                     )}
-
-                    {/* Chart Section */}
-                    <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
-                      <div className="flex justify-between items-center mb-8">
-                        <h3 className="text-lg font-bold text-gray-900">Spending Trends</h3>
-                        <div className="flex gap-2">
-                          <span className="flex items-center gap-1 text-xs font-bold text-gray-400">
-                            <div className="w-2 h-2 rounded-full bg-primary" /> Last 7 Days
-                          </span>
-                        </div>
-                      </div>
-                      <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={spendingData}>
-                            <defs>
-                              <linearGradient id="colorAmt" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#0F172B" stopOpacity={0.1}/>
-                                <stop offset="95%" stopColor="#0F172B" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94A3B8' }} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94A3B8' }} tickFormatter={(v) => `₹${v}`} />
-                            <Tooltip 
-                              contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                              formatter={(value: number) => [formatCurrency(value), 'Amount']}
-                            />
-                            <Area type="monotone" dataKey="amount" stroke="#0F172B" strokeWidth={3} fillOpacity={1} fill="url(#colorAmt)" />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
                   </div>
 
                   {/* Sidebar Info */}
                   <div className="space-y-8">
                     {/* Quick Actions */}
-                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <div className="bg-white p-6 rounded-[10px] shadow-sm border border-gray-100">
                       <h3 className="text-lg font-bold mb-4">Quick Actions</h3>
                       <div className="grid grid-cols-2 gap-3">
                         <button 
                           onClick={() => setShowAddTransaction(true)}
-                          className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-primary hover:text-white rounded-2xl transition-all group"
+                          className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-primary hover:text-white rounded-[10px] transition-all group"
                         >
                           <PlusCircle className="mb-2 group-hover:scale-110 transition-transform" />
                           <span className="text-xs font-bold">New Spend</span>
                         </button>
                         <button 
                           onClick={() => setShowAddParty(true)}
-                          className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-primary hover:text-white rounded-2xl transition-all group"
+                          className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-primary hover:text-white rounded-[10px] transition-all group"
                         >
                           <UserPlus className="mb-2 group-hover:scale-110 transition-transform" />
                           <span className="text-xs font-bold">Add Party</span>
@@ -1559,10 +1568,10 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                     </div>
 
                     {/* Upcoming Dues */}
-                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <div className="bg-white p-6 rounded-[10px] shadow-sm border border-gray-100">
                       <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold">Upcoming Dues</h3>
-                        <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-lg">Next 30 Days</span>
+                        <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-[10px]">Next 30 Days</span>
                       </div>
                       <div className="space-y-4">
                         {cards.length === 0 ? (
@@ -1571,9 +1580,9 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                           cards
                             .sort((a, b) => a.dueDate - b.dueDate)
                             .map(card => (
-                              <div key={card.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-2xl transition-colors border border-transparent hover:border-gray-100">
+                              <div key={card.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-[10px] transition-colors border border-transparent hover:border-gray-100">
                                 <div className="flex items-center gap-3">
-                                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white", card.theme || "bg-primary")}>
+                                  <div className={cn("w-10 h-10 rounded-[10px] flex items-center justify-center text-white", card.theme || "bg-primary")}>
                                     <Calendar size={18} />
                                   </div>
                                   <div>
@@ -1594,7 +1603,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                     </div>
 
                     {/* Category Distribution */}
-                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <div className="bg-white p-6 rounded-[10px] shadow-sm border border-gray-100">
                       <h3 className="text-lg font-bold mb-6">Spending Split</h3>
                       <div className="h-[200px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
@@ -1613,7 +1622,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                               ))}
                             </Pie>
                             <Tooltip 
-                              contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                              contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                               formatter={(value: number) => [formatCurrency(value), '']}
                             />
                           </PieChart>
@@ -1623,7 +1632,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                         {categoryData.map((cat, i) => (
                           <div key={i} className="flex items-center justify-between text-xs font-bold">
                             <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                              <div className="w-2 h-2 rounded-[10px]" style={{ backgroundColor: cat.color }} />
                               <span className="text-gray-500">{cat.name}</span>
                             </div>
                             <span className="text-gray-900">{formatCurrency(cat.value)}</span>
@@ -1636,7 +1645,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
               </div>
             )}
 
-            {activeTab === 'admin' && <AdminSection user={user} setConfirmAction={setConfirmAction} />}
+            {activeTab === 'admin' && user.role === 'admin' && <AdminSection user={user} setConfirmAction={setConfirmAction} />}
             {activeTab === 'profile' && <ProfileSection user={user} setUser={setUser} />}
           </div>
         </div>
@@ -1662,10 +1671,10 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
             >
               <div className="p-6 flex items-center justify-between border-b border-[#202C33]">
                 <div className="flex items-center gap-3">
-                  <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="Logo" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
+                  <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="Logo" className="w-8 h-8 rounded-[10px]" referrerPolicy="no-referrer" />
                   <span className="font-bold text-white text-lg">CardSwipe</span>
                 </div>
-                <button onClick={() => setShowMobileMenu(false)} className="p-2 hover:bg-[#202C33] rounded-xl">
+                <button onClick={() => setShowMobileMenu(false)} className="p-2 hover:bg-[#202C33] rounded-[10px]">
                   <X size={20} />
                 </button>
               </div>
@@ -1793,7 +1802,7 @@ const AddCardModal = ({ onClose, onAdd }: any) => {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden"
+        className="bg-white w-full max-lg rounded-[10px] shadow-2xl overflow-hidden"
       >
         <div className="p-8">
           <div className="flex justify-between items-center mb-6">
@@ -1968,7 +1977,7 @@ const AddTransactionModal = ({ cards, parties, onAddParty, onClose, onAdd }: any
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-8"
+        className="bg-white w-full max-w-lg rounded-[10px] shadow-2xl p-8"
       >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">Add Transaction</h2>
@@ -2002,7 +2011,7 @@ const AddTransactionModal = ({ cards, parties, onAddParty, onClose, onAdd }: any
                 type="button"
                 onClick={() => setForm({ ...form, partyType: type as any, partyName: type === 'self' ? 'Self' : '', partyId: '' })}
                 className={cn(
-                  "py-2 px-3 rounded-2xl text-xs font-bold capitalize transition-all",
+                  "py-2 px-3 rounded-[10px] text-xs font-bold capitalize transition-all",
                   form.partyType === type ? "bg-primary text-white" : "bg-gray-100 text-gray-500"
                 )}
               >
@@ -2105,7 +2114,7 @@ const AddPartyModal = ({ onClose, onAdd }: any) => {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-8"
+        className="bg-white w-full max-w-lg rounded-[10px] shadow-2xl p-8"
       >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">Create Profile</h2>
@@ -2120,7 +2129,7 @@ const AddPartyModal = ({ onClose, onAdd }: any) => {
                 type="button"
                 onClick={() => setForm({ ...form, type: type as any })}
                 className={cn(
-                  "flex-1 py-2 rounded-2xl text-sm font-bold capitalize transition-all",
+                  "flex-1 py-2 rounded-[10px] text-sm font-bold capitalize transition-all",
                   form.type === type ? "bg-primary text-white" : "bg-gray-100 text-gray-500"
                 )}
               >
@@ -2215,7 +2224,7 @@ const CardDetailsModal = ({ card, transactions, onClose, onUpdate, setConfirmAct
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <motion.div 
         layoutId={card.id}
-        className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+        className="bg-white w-full max-w-2xl rounded-[10px] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
       >
         <div className={cn("p-8 text-white relative", card.theme)}>
           <div className="flex justify-between items-start mb-8">
@@ -2225,7 +2234,7 @@ const CardDetailsModal = ({ card, transactions, onClose, onUpdate, setConfirmAct
                 <p className="text-xl font-mono tracking-widest">
                   {showFullNumber ? card.cardNumber : `•••• •••• •••• ${card.cardNumber.slice(-4)}`}
                 </p>
-                <button onClick={() => setShowFullNumber(!showFullNumber)} className="p-1 hover:bg-white/20 rounded-lg">
+                <button onClick={() => setShowFullNumber(!showFullNumber)} className="p-1 hover:bg-white/20 rounded-[10px]">
                   {showFullNumber ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
@@ -2260,10 +2269,10 @@ const CardDetailsModal = ({ card, transactions, onClose, onUpdate, setConfirmAct
 
           <div className="space-y-4">
             {transactions.map((t: any) => (
-              <div key={t.id} className="p-4 rounded-2xl border border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div key={t.id} className="p-4 rounded-[10px] border border-gray-100 flex items-center justify-between bg-gray-50/50">
                 <div className="flex items-center gap-4">
                   <div className={cn(
-                    "w-10 h-10 rounded-2xl flex items-center justify-center",
+                    "w-10 h-10 rounded-[10px] flex items-center justify-center",
                     t.partyType === 'self' ? "bg-blue-100 text-blue-600" : 
                     t.partyType === 'individual' ? "bg-emerald-100 text-emerald-600" : "bg-orange-100 text-orange-600"
                   )}>
@@ -2335,10 +2344,10 @@ const ResetPassword = () => {
       <motion.div 
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="bg-white w-full max-w-md rounded-3xl shadow-xl p-10 border border-[#e9edef]"
+        className="bg-white w-full max-w-md rounded-[10px] shadow-xl p-10 border border-[#e9edef]"
       >
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-primary/10 text-primary rounded-[10px] flex items-center justify-center mx-auto mb-4">
             <Lock size={32} />
           </div>
           <h1 className="text-3xl font-bold text-[#111b21] mb-2">Reset Password</h1>
@@ -2362,7 +2371,7 @@ const ResetPassword = () => {
             onChange={(e: any) => setConfirmPassword(e.target.value)}
             required
           />
-          <Button className="w-full py-4 rounded-2xl text-lg font-bold shadow-lg shadow-primary/20" disabled={loading}>
+          <Button className="w-full py-4 rounded-[10px] text-lg font-bold shadow-lg shadow-primary/20" disabled={loading}>
             {loading ? 'Resetting...' : 'Reset Password'}
           </Button>
         </form>

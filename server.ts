@@ -102,10 +102,13 @@ async function startServer() {
 
   // --- Auth Routes ---
   app.post('/api/register', async (req, res) => {
-    const { fullName, email, password } = req.body;
+    const { fullName, email, username, password } = req.body;
     const db = getDb();
     if (db.users.find(u => u.email === email)) {
-      return res.status(400).json({ error: 'User already exists' });
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+    if (username && db.users.find(u => u.username === username)) {
+      return res.status(400).json({ error: 'Username already exists' });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const verificationToken = uuidv4();
@@ -113,6 +116,7 @@ async function startServer() {
       id: uuidv4(),
       fullName,
       email,
+      username,
       password: hashedPassword,
       isVerified: false,
       verificationToken,
@@ -172,12 +176,23 @@ async function startServer() {
   });
 
   app.post('/api/login', async (req, res) => {
-    const { email, password } = req.body;
+    const { identifier, password } = req.body; // identifier can be email or username
     
     const db = getDb();
-    const user = db.users.find(u => u.email === email);
+    let user = db.users.find(u => u.email === identifier);
+    
+    // Allow only admin = "admin" user to use username
+    if (!user && identifier === 'admin') {
+      user = db.users.find(u => u.username === 'admin');
+    }
+
+    // If not admin and not an email, restrict access
+    if (!user && !identifier.includes('@')) {
+      return res.status(401).json({ error: 'Please use your email address to sign in' });
+    }
+
     if (!user || !(await bcrypt.compare(password, user.password))) {
-      logActivity('unknown', 'LOGIN_FAILED', `Failed login attempt for ${email}`, req);
+      logActivity('unknown', 'LOGIN_FAILED', `Failed login attempt for ${identifier}`, req);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -240,20 +255,30 @@ async function startServer() {
   });
 
   app.post('/api/forgot-password', async (req, res) => {
-    const { email } = req.body;
+    const { identifier } = req.body; // identifier can be email or username
     const db = getDb();
-    const user = db.users.find(u => u.email === email);
+    let user = db.users.find(u => u.email === identifier);
+    
+    // Allow only admin = "admin" user to use username
+    if (!user && identifier === 'admin') {
+      user = db.users.find(u => u.username === 'admin');
+    }
+
+    // If not admin and not an email, restrict access
+    if (!user && !identifier.includes('@')) {
+      return res.status(400).json({ error: 'Please use your email address' });
+    }
     
     // Generic message for security
-    const successMsg = 'If an account exists for this email, a reset link has been sent.';
-    if (!user) return res.json({ message: successMsg });
+    const successMsg = 'If an account exists, a reset link has been sent.';
+    if (!user || !user.email) return res.json({ message: successMsg });
     
     const resetToken = crypto.randomBytes(32).toString('hex');
     user.resetToken = resetToken;
     saveDb(db);
 
     try {
-      await sendPasswordResetEmail(email, resetToken);
+      await sendPasswordResetEmail(user.email, resetToken);
     } catch (e) {
       console.error('Failed to send reset email', e);
     }
