@@ -44,9 +44,14 @@ async function startServer() {
   const requireVerified = (req: any, res: any, next: any) => {
     const db = getDb();
     const user = db.users.find(u => u.id === req.session.userId);
-    if (req.session.userId === 'admin-id') return next();
-    if (!user?.isVerified && user?.role !== 'admin') {
-      return res.status(403).json({ error: 'Email not verified' });
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    if (!user.isVerified) {
+      // Even admins should verify their email for security, unless it's the primary admin email
+      const adminEmails = ['sukumawa45@gmail.com', 'kumawatsumit45@gmail.com'];
+      if (!adminEmails.includes(user.email)) {
+        return res.status(403).json({ error: 'Email not verified' });
+      }
     }
     next();
   };
@@ -54,13 +59,15 @@ async function startServer() {
   // Middleware to check admin
   const isAdmin = (userId: string | undefined) => {
     if (!userId) return false;
-    if (userId === 'admin-id') return true;
     const db = getDb();
     const user = db.users.find(u => u.id === userId);
-    if (user?.role === 'admin') return true;
+    if (!user) return false;
+    
     // Default admin from runtime context - strictly limited to these emails
     const adminEmails = ['sukumawa45@gmail.com', 'kumawatsumit45@gmail.com'];
-    if (user && adminEmails.includes(user.email)) return true;
+    if (adminEmails.includes(user.email)) return true;
+    
+    if (user.role === 'admin') return true;
     return false;
   };
 
@@ -74,12 +81,8 @@ async function startServer() {
   const logActivity = (userId: string, action: string, details: string, req: any) => {
     const db = getDb();
     let userEmail = 'system';
-    if (userId === 'admin-id') {
-      userEmail = 'admin';
-    } else {
-      const user = db.users.find(u => u.id === userId);
-      if (user) userEmail = user.email;
-    }
+    const user = db.users.find(u => u.id === userId);
+    if (user) userEmail = user.email;
 
     const log: any = {
       id: uuidv4(),
@@ -89,10 +92,11 @@ async function startServer() {
       details,
       type: action.includes('ADMIN') || action.includes('CLEAR') ? 'admin' : 
             action.includes('LOGIN') || action.includes('REGISTER') || action.includes('VERIFY') || action.includes('PASSWORD') ? 'auth' : 'activity',
-      ip: req.ip,
+      ip: req.ip || 'unknown',
       timestamp: new Date().toISOString()
     };
     db.logs.push(log);
+    if (db.logs.length > 1000) db.logs.shift();
     saveDb(db);
   };
 
@@ -170,13 +174,6 @@ async function startServer() {
   app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
     
-    // Hardcoded Admin
-    if (email === 'admin' && password === 'admin') {
-      req.session.userId = 'admin-id';
-      logActivity('admin-id', 'LOGIN', 'Admin logged in', req);
-      return res.json({ user: { id: 'admin-id', fullName: 'Administrator', role: 'admin', isVerified: true } });
-    }
-
     const db = getDb();
     const user = db.users.find(u => u.email === email);
     if (!user || !(await bcrypt.compare(password, user.password))) {
@@ -184,8 +181,12 @@ async function startServer() {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    if (!user.isVerified && !isAdmin(user.id)) {
-      return res.status(403).json({ error: 'Email not verified. Please check your inbox or resend verification email.', unverified: true });
+    if (!user.isVerified) {
+      // Even admins should verify their email for security, unless it's the primary admin email
+      const adminEmails = ['sukumawa45@gmail.com', 'kumawatsumit45@gmail.com'];
+      if (!adminEmails.includes(user.email)) {
+        return res.status(403).json({ error: 'Email not verified. Please check your inbox or resend verification email.', unverified: true });
+      }
     }
 
     req.session.userId = user.id;
@@ -215,9 +216,6 @@ async function startServer() {
   });
 
   app.get('/api/me', requireAuth, (req: any, res) => {
-    if (req.session.userId === 'admin-id') {
-      return res.json({ id: 'admin-id', fullName: 'Administrator', role: 'admin', isVerified: true });
-    }
     const db = getDb();
     const user = db.users.find(u => u.id === req.session.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -245,7 +243,10 @@ async function startServer() {
     const { email } = req.body;
     const db = getDb();
     const user = db.users.find(u => u.email === email);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    // Generic message for security
+    const successMsg = 'If an account exists for this email, a reset link has been sent.';
+    if (!user) return res.json({ message: successMsg });
     
     const resetToken = crypto.randomBytes(32).toString('hex');
     user.resetToken = resetToken;
@@ -256,8 +257,7 @@ async function startServer() {
     } catch (e) {
       console.error('Failed to send reset email', e);
     }
-    
-    res.json({ message: 'Password reset instructions sent to your email.' });
+    res.json({ message: successMsg });
   });
 
   app.post('/api/reset-password', async (req, res) => {

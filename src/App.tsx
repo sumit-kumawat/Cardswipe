@@ -22,13 +22,19 @@ import {
   Clock, 
   AlertCircle,
   ChevronRight,
+  ChevronLeft,
   Download,
   Filter,
   Key,
   Shield,
+  ShieldCheck,
   Lock,
   Activity,
-  TrendingUp
+  TrendingUp,
+  LayoutDashboard,
+  UserCircle,
+  PlusCircle,
+  UserPlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -92,32 +98,116 @@ interface Party {
 
 const Button = ({ className, variant = 'primary', ...props }: any) => {
   const variants: any = {
-    primary: 'bg-primary text-white hover:bg-primary/90',
-    secondary: 'bg-white text-gray-900 border border-gray-200 hover:bg-gray-50',
-    danger: 'bg-red-600 text-white hover:bg-red-700',
-    ghost: 'bg-transparent hover:bg-gray-100 text-gray-600',
+    primary: 'bg-primary text-white hover:bg-primary-dark shadow-sm shadow-primary/20',
+    secondary: 'bg-white text-[#54656f] border border-[#d1d7db] hover:bg-[#f0f2f5]',
+    danger: 'bg-rose-500 text-white hover:bg-rose-600 shadow-sm shadow-rose-500/20',
+    ghost: 'bg-transparent hover:bg-black/5 text-[#54656f]',
+    success: 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-500/20',
   };
   return (
     <button 
-      className={cn('px-4 py-2 rounded-2xl font-medium transition-all active:scale-95 disabled:opacity-50', variants[variant], className)} 
+      className={cn(
+        'px-6 py-2.5 rounded-2xl font-bold text-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2', 
+        variants[variant], 
+        className
+      )} 
       {...props} 
     />
   );
 };
 
-const Input = ({ label, error, ...props }: any) => (
-  <div className="space-y-1">
-    {label && <label className="text-sm font-medium text-gray-700">{label}</label>}
-    <input 
-      className={cn(
-        "w-full px-4 py-2 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all",
-        error && "border-red-500 ring-red-200"
-      )} 
-      {...props} 
-    />
-    {error && <p className="text-xs text-red-500">{error}</p>}
+const Input = ({ label, error, icon: Icon, ...props }: any) => (
+  <div className="space-y-1.5 w-full">
+    {label && <label className="text-xs font-bold text-[#667781] uppercase tracking-wider ml-1">{label}</label>}
+    <div className="relative group">
+      {Icon && (
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8696a0] group-focus-within:text-primary transition-colors">
+          <Icon size={18} />
+        </div>
+      )}
+      <input 
+        className={cn(
+          "w-full px-4 py-3 bg-white border border-[#e9edef] rounded-2xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm placeholder:text-[#8696a0]",
+          Icon && "pl-11",
+          error && "border-rose-500 ring-rose-200"
+        )} 
+        {...props} 
+      />
+    </div>
+    {error && <p className="text-[10px] font-bold text-rose-500 ml-1">{error}</p>}
   </div>
 );
+
+const Select = ({ label, options, ...props }: any) => (
+  <div className="space-y-1.5 w-full">
+    {label && <label className="text-xs font-bold text-[#667781] uppercase tracking-wider ml-1">{label}</label>}
+    <select 
+      className="w-full px-4 py-3 bg-white border border-[#e9edef] rounded-2xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm text-[#54656f]"
+      {...props}
+    >
+      {options.map((opt: any) => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
+  </div>
+);
+
+const StatCard = ({ title, value, icon, trend, color }: any) => {
+  const colors: any = {
+    blue: 'bg-blue-50 text-blue-600',
+    amber: 'bg-amber-50 text-amber-600',
+    emerald: 'bg-emerald-50 text-emerald-600',
+    rose: 'bg-rose-50 text-rose-600',
+  };
+  
+  return (
+    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between h-full hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start mb-4">
+        <div className={cn("p-3 rounded-2xl", colors[color] || colors.blue)}>
+          {icon}
+        </div>
+        {trend && (
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 px-2 py-1 rounded-lg">
+            {trend}
+          </span>
+        )}
+      </div>
+      <div>
+        <p className="text-sm font-bold text-gray-500 mb-1">{title}</p>
+        <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
+      </div>
+    </div>
+  );
+};
+
+const SidebarItem = ({ icon, label, active, collapsed, onClick }: any) => {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group relative",
+        active 
+          ? "bg-[#202C33] text-white shadow-lg" 
+          : "text-[#AEBAC1] hover:bg-[#202C33] hover:text-white"
+      )}
+    >
+      <div className={cn(
+        "flex items-center justify-center transition-transform group-hover:scale-110",
+        active ? "text-primary" : ""
+      )}>
+        {icon}
+      </div>
+      {!collapsed && (
+        <span className="text-sm font-bold truncate">{label}</span>
+      )}
+      {collapsed && (
+        <div className="absolute left-full ml-4 px-2 py-1 bg-[#202C33] text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap">
+          {label}
+        </div>
+      )}
+    </button>
+  );
+};
 
 // --- Pages ---
 
@@ -205,25 +295,30 @@ const Login = ({ onLogin }: any) => {
 
   if (showForgot) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] p-4 font-quicksand">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-gray-100"
+          className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-[#e9edef]"
         >
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">Forgot Password</h1>
-            <p className="text-gray-500 mt-2">Enter your email to receive reset instructions</p>
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Key size={32} />
+            </div>
+            <h1 className="text-2xl font-bold text-[#111b21]">Forgot Password</h1>
+            <p className="text-[#667781] mt-2 text-sm">Enter your email to receive reset instructions</p>
           </div>
           <form onSubmit={handleForgot} className="space-y-4">
             <Input 
               label="Email Address" 
               type="email" 
+              icon={User}
+              placeholder="Enter your email"
               value={email}
               onChange={(e: any) => setEmail(e.target.value)}
               required
             />
-            <Button className="w-full py-3" disabled={loading}>
+            <Button className="w-full py-3.5" disabled={loading}>
               {loading ? 'Sending...' : 'Send Reset Link'}
             </Button>
             <Button variant="ghost" className="w-full" onClick={() => setShowForgot(false)}>
@@ -236,23 +331,26 @@ const Login = ({ onLogin }: any) => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] p-4 font-quicksand">
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full bg-white p-10 rounded-3xl shadow-2xl text-center border border-gray-100"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-[#e9edef]"
       >
-        <div className="mb-8 flex justify-center">
-          <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="CardSwipe Logo" className="w-16 h-16" referrerPolicy="no-referrer" />
+        <div className="mb-8 flex flex-col items-center">
+          <div className="w-20 h-20 bg-primary rounded-3xl flex items-center justify-center text-white shadow-lg shadow-primary/20 mb-4">
+            <CreditCard className="w-10 h-10" />
+          </div>
+          <h1 className="text-3xl font-bold text-[#111b21] tracking-tight">CardSwipe</h1>
+          <p className="text-[#667781] mt-1 text-sm">Secure Credit Management</p>
         </div>
-        <h1 className="text-3xl font-bold text-primary tracking-tight">Welcome Back</h1>
-        <p className="text-gray-500 mt-2 mb-8">Sign in to manage your credit cards</p>
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-left">
+        <form onSubmit={handleSubmit} className="space-y-5 text-left">
           <Input 
             label="Email Address" 
-            type="text" 
-            placeholder="admin or your email"
+            type="email" 
+            icon={User}
+            placeholder="Enter your email"
             value={email}
             onChange={(e: any) => setEmail(e.target.value)}
             required
@@ -260,44 +358,55 @@ const Login = ({ onLogin }: any) => {
           <Input 
             label="Password" 
             type="password" 
+            icon={Lock}
             placeholder="••••••••"
             value={password}
             onChange={(e: any) => setPassword(e.target.value)}
             required
           />
-          <Button className="w-full py-3" disabled={loading}>
-            {loading ? 'Logging in...' : 'Sign In'}
+          
+          <Button className="w-full py-4 rounded-2xl text-lg font-bold shadow-lg shadow-primary/20" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
           </Button>
           
           {unverifiedEmail && (
-            <div className="mt-4 p-4 bg-amber-50 rounded-2xl border border-amber-100 text-center">
-              <p className="text-sm text-amber-800 mb-2 font-medium">Email not verified yet</p>
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-4 bg-amber-50 rounded-2xl border border-amber-100 text-center"
+            >
+              <p className="text-xs text-amber-800 mb-3 font-bold flex items-center justify-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                Email not verified yet
+              </p>
               <Button 
                 type="button"
                 variant="secondary" 
-                className="w-full py-2 text-xs font-bold"
+                className="w-full py-2 text-[10px] font-bold rounded-xl uppercase tracking-wider"
                 onClick={handleResend}
                 disabled={loading}
               >
                 Resend Verification Email
               </Button>
-            </div>
+            </motion.div>
           )}
 
           <div className="text-center">
             <button 
               type="button"
               onClick={() => setShowForgot(true)}
-              className="text-sm text-primary font-medium hover:underline"
+              className="text-sm text-primary font-bold hover:text-primary-dark transition-colors"
             >
               Forgot Password?
             </button>
           </div>
         </form>
 
-        <p className="text-center text-sm text-gray-500 mt-6">
-          Don't have an account? <Link to="/register" className="text-primary font-medium hover:underline">Register now</Link>
-        </p>
+        <div className="mt-10 pt-8 border-t border-[#e9edef] text-center">
+          <p className="text-sm text-[#667781]">
+            Don't have an account? <Link to="/register" className="text-primary font-bold hover:text-primary-dark transition-colors">Create Account</Link>
+          </p>
+        </div>
       </motion.div>
     </div>
   );
@@ -332,47 +441,58 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] p-4 font-quicksand">
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full bg-white p-10 rounded-3xl shadow-2xl text-center border border-gray-100"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="max-w-md w-full bg-white p-10 rounded-3xl shadow-xl border border-[#e9edef]"
       >
-        <div className="mb-8 flex justify-center">
-          <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="CardSwipe Logo" className="w-16 h-16" referrerPolicy="no-referrer" />
+        <div className="mb-8 flex flex-col items-center">
+          <div className="w-20 h-20 bg-primary rounded-3xl flex items-center justify-center text-white shadow-lg shadow-primary/20 mb-4">
+            <UserPlus className="w-10 h-10" />
+          </div>
+          <h1 className="text-3xl font-bold text-[#111b21] tracking-tight">Join CardSwipe</h1>
+          <p className="text-[#667781] mt-1 text-center text-sm">Start managing your cards professionally</p>
         </div>
-        <h1 className="text-3xl font-bold text-primary tracking-tight">Create Account</h1>
-        <p className="text-gray-500 mt-2 mb-8">Start managing your cards professionally</p>
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-left">
+        <form onSubmit={handleSubmit} className="space-y-5 text-left">
           <Input 
             label="Full Name" 
+            placeholder="John Doe"
+            icon={User}
             value={form.fullName}
             onChange={(e: any) => setForm({ ...form, fullName: e.target.value })}
             required
           />
           <Input 
             label="Email Address" 
-            type="email"
+            type="email" 
+            icon={Activity}
+            placeholder="john@example.com"
             value={form.email}
             onChange={(e: any) => setForm({ ...form, email: e.target.value })}
             required
           />
           <Input 
             label="Password" 
-            type="password"
+            type="password" 
+            icon={Lock}
+            placeholder="••••••••"
             value={form.password}
             onChange={(e: any) => setForm({ ...form, password: e.target.value })}
             required
           />
-          <Button className="w-full py-3" disabled={loading}>
-            {loading ? 'Registering...' : 'Sign Up'}
+          
+          <Button className="w-full py-4 rounded-2xl text-lg font-bold shadow-lg shadow-primary/20" disabled={loading}>
+            {loading ? 'Creating account...' : 'Create Account'}
           </Button>
         </form>
 
-        <p className="text-center text-sm text-gray-500 mt-6">
-          Already have an account? <Link to="/login" className="text-primary font-medium hover:underline">Sign in</Link>
-        </p>
+        <div className="mt-10 pt-8 border-t border-[#e9edef] text-center">
+          <p className="text-sm text-[#667781]">
+            Already have an account? <Link to="/login" className="text-primary font-bold hover:text-primary-dark transition-colors">Sign In</Link>
+          </p>
+        </div>
       </motion.div>
     </div>
   );
@@ -383,16 +503,19 @@ const ConfirmModal = ({ title, message, onConfirm, onCancel, confirmText = 'Conf
     <motion.div 
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl text-center"
+      className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl text-center border border-[#e9edef]"
     >
-      <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+      <div className={cn(
+        "w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6",
+        confirmVariant === 'danger' ? "bg-rose-100 text-rose-600" : "bg-amber-100 text-amber-600"
+      )}>
         <AlertCircle size={32} />
       </div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
-      <p className="text-gray-500 mb-8">{message}</p>
+      <h2 className="text-2xl font-bold text-[#111b21] mb-2">{title}</h2>
+      <p className="text-[#667781] mb-8 text-sm">{message}</p>
       <div className="flex gap-3">
-        <Button variant="secondary" className="flex-1 py-3 rounded-2xl" onClick={onCancel}>Cancel</Button>
-        <Button variant={confirmVariant} className="flex-1 py-3 rounded-2xl" onClick={onConfirm}>{confirmText}</Button>
+        <Button variant="secondary" className="flex-1 py-3" onClick={onCancel}>Cancel</Button>
+        <Button variant={confirmVariant} className="flex-1 py-3" onClick={onConfirm}>{confirmText}</Button>
       </div>
     </motion.div>
   </div>
@@ -460,43 +583,64 @@ const ProfileSection = ({ user, setUser }: any) => {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-          <h2 className="text-2xl font-bold mb-6">Profile Settings</h2>
-          <form onSubmit={handleUpdateProfile} className="space-y-4">
-            <div className="flex items-center gap-2 mb-4">
-              <span className={cn(
-                "px-3 py-1 rounded-full text-xs font-bold",
-                user.isVerified ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"
-              )}>
-                {user.isVerified ? 'Verified Account' : 'Unverified Account'}
-              </span>
+    <div className="max-w-4xl mx-auto space-y-8 pb-12">
+      <div className="bg-white p-8 rounded-3xl border border-[#e9edef] shadow-sm flex flex-col items-center text-center">
+        <div className="w-24 h-24 rounded-full bg-primary/10 text-primary flex items-center justify-center text-3xl font-bold mb-4 border-4 border-white shadow-lg">
+          {user.fullName[0]}
+        </div>
+        <h2 className="text-2xl font-bold text-[#111b21]">{user.fullName}</h2>
+        <p className="text-[#667781] text-sm mb-4">{user.email}</p>
+        <span className={cn(
+          "px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+          user.isVerified ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"
+        )}>
+          {user.isVerified ? 'Verified Account' : 'Unverified Account'}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="bg-white p-8 rounded-3xl border border-[#e9edef] shadow-sm">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-primary/10 text-primary rounded-xl">
+              <User size={20} />
             </div>
+            <h3 className="text-lg font-bold text-[#111b21]">Personal Info</h3>
+          </div>
+          <form onSubmit={handleUpdateProfile} className="space-y-4">
             <Input label="Full Name" value={fullName} onChange={(e: any) => setFullName(e.target.value)} required />
             <Input label="Phone Number" value={phone} onChange={(e: any) => setPhone(e.target.value)} />
-            <Button className="w-full py-3" disabled={loading}>Save Changes</Button>
+            <Button className="w-full" disabled={loading}>Save Changes</Button>
           </form>
         </div>
 
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-          <h2 className="text-2xl font-bold mb-6">Security</h2>
+        <div className="bg-white p-8 rounded-3xl border border-[#e9edef] shadow-sm">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-amber-100 text-amber-600 rounded-xl">
+              <Lock size={20} />
+            </div>
+            <h3 className="text-lg font-bold text-[#111b21]">Security</h3>
+          </div>
           <form onSubmit={handleUpdatePassword} className="space-y-4">
             <Input label="Current Password" type="password" value={currentPassword} onChange={(e: any) => setCurrentPassword(e.target.value)} required />
             <Input label="New Password" type="password" value={newPassword} onChange={(e: any) => setNewPassword(e.target.value)} required />
-            <Button variant="secondary" className="w-full py-3" disabled={loading}>Update Password</Button>
+            <Button variant="secondary" className="w-full" disabled={loading}>Update Password</Button>
           </form>
         </div>
       </div>
 
-      <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm max-w-2xl">
-        <h2 className="text-2xl font-bold mb-2">Change Email</h2>
-        <p className="text-gray-500 mb-6 text-sm">Current: {user.email}. You will need to verify the new email address.</p>
-        <form onSubmit={handleUpdateEmail} className="flex gap-4">
+      <div className="bg-white p-8 rounded-3xl border border-[#e9edef] shadow-sm">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
+            <Activity size={20} />
+          </div>
+          <h3 className="text-lg font-bold text-[#111b21]">Change Email</h3>
+        </div>
+        <p className="text-[#667781] mb-6 text-sm ml-11">Current: {user.email}. You will need to verify the new email address.</p>
+        <form onSubmit={handleUpdateEmail} className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <Input label="New Email Address" type="email" value={newEmail} onChange={(e: any) => setNewEmail(e.target.value)} required />
           </div>
-          <Button variant="secondary" className="mt-7 px-8" disabled={loading}>Update</Button>
+          <Button variant="secondary" className="sm:mt-7 px-8" disabled={loading}>Update Email</Button>
         </form>
       </div>
     </div>
@@ -804,62 +948,62 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
           </div>
         </div>
       ) : view === 'users' ? (
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-3xl border border-[#e9edef] shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/50 border-b border-gray-100">
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">User</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Email</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Role</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+                <tr className="bg-[#f0f2f5] border-b border-[#e9edef]">
+                  <th className="px-8 py-4 text-[10px] font-bold text-[#667781] uppercase tracking-widest">User</th>
+                  <th className="px-8 py-4 text-[10px] font-bold text-[#667781] uppercase tracking-widest">Email</th>
+                  <th className="px-8 py-4 text-[10px] font-bold text-[#667781] uppercase tracking-widest">Role</th>
+                  <th className="px-8 py-4 text-[10px] font-bold text-[#667781] uppercase tracking-widest">Status</th>
+                  <th className="px-8 py-4 text-[10px] font-bold text-[#667781] uppercase tracking-widest text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-[#e9edef]">
                 {filteredUsers.map(u => (
-                  <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-8 py-4">
+                  <tr key={u.id} className="hover:bg-[#f0f2f5]/50 transition-colors">
+                    <td className="px-8 py-5">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold border border-primary/20">
                           {u.fullName ? u.fullName[0] : '?'}
                         </div>
-                        <span className="font-bold">{u.fullName || 'No Name'}</span>
+                        <span className="font-bold text-[#111b21]">{u.fullName || 'No Name'}</span>
                       </div>
                     </td>
-                    <td className="px-8 py-4 text-gray-500">{u.email}</td>
-                    <td className="px-8 py-4">
+                    <td className="px-8 py-5 text-[#667781] text-sm">{u.email}</td>
+                    <td className="px-8 py-5">
                       <span className={cn(
-                        "px-3 py-1 rounded-full text-xs font-bold",
+                        "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
                         u.role === 'admin' ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"
                       )}>
-                        {u.role.toUpperCase()}
+                        {u.role}
                       </span>
                     </td>
-                    <td className="px-8 py-4">
+                    <td className="px-8 py-5">
                       <button 
                         onClick={() => handleToggleVerify(u.id, u.isVerified)}
                         className={cn(
-                          "flex items-center gap-1.5 text-xs font-bold hover:opacity-80 transition-opacity",
+                          "flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider hover:opacity-80 transition-opacity",
                           u.isVerified ? "text-emerald-600" : "text-rose-600"
                         )}
                       >
-                        <div className={cn("w-1.5 h-1.5 rounded-full", u.isVerified ? "bg-emerald-600" : "bg-rose-600")} />
+                        <div className={cn("w-2 h-2 rounded-full", u.isVerified ? "bg-emerald-600 shadow-[0_0_8px_rgba(16,185,129,0.4)]" : "bg-rose-600 shadow-[0_0_8px_rgba(244,63,94,0.4)]")} />
                         {u.isVerified ? 'Verified' : 'Unverified'}
                       </button>
                     </td>
-                    <td className="px-8 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => handleToggleAdmin(u.id, u.role)} className="p-2 hover:bg-amber-50 text-amber-600 rounded-2xl transition-colors" title={u.role === 'admin' ? "Demote to User" : "Promote to Admin"}>
+                    <td className="px-8 py-5 text-right">
+                      <div className="flex justify-end gap-1">
+                        <button onClick={() => handleToggleAdmin(u.id, u.role)} className="p-2 hover:bg-amber-50 text-amber-600 rounded-xl transition-colors" title={u.role === 'admin' ? "Demote to User" : "Promote to Admin"}>
                           <Shield size={18} />
                         </button>
-                        <button onClick={() => handleViewUser(u)} className="p-2 hover:bg-blue-50 text-blue-600 rounded-2xl transition-colors" title="View Details">
+                        <button onClick={() => handleViewUser(u)} className="p-2 hover:bg-blue-50 text-blue-600 rounded-xl transition-colors" title="View Details">
                           <Eye size={18} />
                         </button>
-                        <button onClick={() => handleResetPassword(u.id)} className="p-2 hover:bg-amber-50 text-amber-600 rounded-2xl transition-colors" title="Reset Password">
+                        <button onClick={() => handleResetPassword(u.id)} className="p-2 hover:bg-amber-50 text-amber-600 rounded-xl transition-colors" title="Reset Password">
                           <Key size={18} />
                         </button>
-                        <button onClick={() => handleDeleteUser(u.id)} className="p-2 hover:bg-rose-50 text-rose-600 rounded-2xl transition-colors" title="Delete Account">
+                        <button onClick={() => handleDeleteUser(u.id)} className="p-2 hover:bg-rose-50 text-rose-600 rounded-xl transition-colors" title="Delete Account">
                           <Trash2 size={18} />
                         </button>
                       </div>
@@ -1022,6 +1166,7 @@ const CreditCardUI = ({ card, transactions, onClick }: { card: Card, transaction
 
 const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | null) => void }) => {
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [cards, setCards] = useState<Card[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -1036,6 +1181,13 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
 
   const [searchParams, setSearchParams] = useSearchParams();
   const verified = searchParams.get('verified');
+
+  // Security check for activeTab
+  useEffect(() => {
+    if (activeTab === 'admin' && user.role !== 'admin') {
+      setActiveTab('overview');
+    }
+  }, [activeTab, user.role]);
 
   const handleLogout = async () => {
     await fetch('/api/logout', { method: 'POST' });
@@ -1194,324 +1346,375 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-quicksand">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="CardSwipe Logo" className="w-8 h-8" referrerPolicy="no-referrer" />
-            <span className="font-bold text-xl tracking-tight text-primary hidden sm:block">CardSwipe</span>
-          </div>
+    <div className="min-h-screen bg-[#F0F2F5] flex font-quicksand overflow-hidden">
+      {/* WhatsApp-style Sidebar */}
+      <aside 
+        className={cn(
+          "bg-[#111B21] text-[#AEBAC1] flex flex-col transition-all duration-300 z-50",
+          isSidebarCollapsed ? "w-16" : "w-64",
+          "hidden md:flex"
+        )}
+      >
+        <div className="p-4 flex items-center gap-3 border-b border-[#202C33] h-16">
+          <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="Logo" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
+          {!isSidebarCollapsed && <span className="font-bold text-white text-lg tracking-tight">CardSwipe</span>}
+        </div>
+
+        <div className="flex-1 py-4 overflow-y-auto space-y-1 px-2">
+          <SidebarItem 
+            icon={<LayoutDashboard size={20} />} 
+            label="Overview" 
+            active={activeTab === 'overview'} 
+            collapsed={isSidebarCollapsed}
+            onClick={() => setActiveTab('overview')} 
+          />
+          <SidebarItem 
+            icon={<CreditCard size={20} />} 
+            label="My Cards" 
+            active={activeTab === 'cards'} 
+            collapsed={isSidebarCollapsed}
+            onClick={() => setActiveTab('overview')} // For now overview has cards
+          />
+          <SidebarItem 
+            icon={<Users size={20} />} 
+            label="Parties" 
+            active={activeTab === 'parties'} 
+            collapsed={isSidebarCollapsed}
+            onClick={() => setActiveTab('overview')} 
+          />
+          {user.role === 'admin' && (
+            <SidebarItem 
+              icon={<ShieldCheck size={20} />} 
+              label="Admin Panel" 
+              active={activeTab === 'admin'} 
+              collapsed={isSidebarCollapsed}
+              onClick={() => setActiveTab('admin')} 
+            />
+          )}
+        </div>
+
+        <div className="p-2 border-t border-[#202C33] space-y-1">
+          <SidebarItem 
+            icon={<UserCircle size={20} />} 
+            label="Profile" 
+            active={activeTab === 'profile'} 
+            collapsed={isSidebarCollapsed}
+            onClick={() => setActiveTab('profile')} 
+          />
+          <SidebarItem 
+            icon={<LogOut size={20} />} 
+            label="Logout" 
+            collapsed={isSidebarCollapsed}
+            onClick={handleLogout} 
+          />
+          <button 
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="w-full flex items-center justify-center p-3 hover:bg-[#202C33] rounded-xl transition-colors mt-2"
+          >
+            {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        {/* Top Header */}
+        <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 sticky top-0 z-40">
           <div className="flex items-center gap-4">
-            <nav className="hidden md:flex items-center gap-1 bg-gray-50 p-1 rounded-2xl">
-              <button 
-                onClick={() => setActiveTab('overview')}
-                className={cn("px-4 py-2 rounded-2xl text-sm font-bold transition-all", activeTab === 'overview' ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-700")}
-              >
-                Overview
-              </button>
-              {user.role === 'admin' && (
-                <button 
-                  onClick={() => setActiveTab('admin')}
-                  className={cn("px-4 py-2 rounded-2xl text-sm font-bold transition-all", activeTab === 'admin' ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-700")}
-                >
-                  Admin
-                </button>
-              )}
-              <button 
-                onClick={() => setActiveTab('profile')}
-                className={cn("px-4 py-2 rounded-2xl text-sm font-bold transition-all", activeTab === 'profile' ? "bg-white text-primary shadow-sm" : "text-gray-500 hover:text-gray-700")}
-              >
-                Profile
-              </button>
-            </nav>
-            <div className="flex items-center gap-3">
-              <div className="text-right hidden sm:block">
+            <button className="md:hidden p-2 hover:bg-gray-100 rounded-xl" onClick={() => setShowMobileMenu(true)}>
+              <Menu size={20} />
+            </button>
+            <h1 className="text-xl font-bold text-gray-800 capitalize">
+              {activeTab === 'overview' ? 'Dashboard Overview' : 
+               activeTab === 'admin' ? 'Administration' : 
+               activeTab === 'profile' ? 'User Profile' : activeTab}
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 bg-gray-50 px-3 py-1.5 rounded-2xl border border-gray-100">
+              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-xs">
+                {user.fullName.charAt(0)}
+              </div>
+              <div className="hidden sm:block text-left leading-tight">
                 <p className="text-sm font-bold text-gray-900">{user.fullName}</p>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{user.role}</p>
               </div>
-              <Button variant="secondary" className="p-2 rounded-2xl" onClick={handleLogout}>
-                <LogOut className="w-5 h-5" />
-              </Button>
-              <div className="md:hidden">
-                <Button variant="secondary" className="p-2 rounded-2xl" onClick={() => setShowMobileMenu(!showMobileMenu)}>
-                  <Menu className="w-5 h-5" />
-                </Button>
-              </div>
             </div>
           </div>
-        </div>
+        </header>
 
-        {/* Mobile Menu */}
-        <AnimatePresence>
-          {showMobileMenu && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="md:hidden bg-white border-b border-gray-100 overflow-hidden"
-            >
-              <div className="p-4 space-y-2">
-                <button 
-                  onClick={() => { setActiveTab('overview'); setShowMobileMenu(false); }}
-                  className={cn("w-full text-left px-4 py-3 rounded-2xl text-sm font-bold", activeTab === 'overview' ? "bg-gray-50 text-primary" : "text-gray-500")}
-                >
-                  Overview
-                </button>
-                {user.role === 'admin' && (
-                  <button 
-                    onClick={() => { setActiveTab('admin'); setShowMobileMenu(false); }}
-                    className={cn("w-full text-left px-4 py-3 rounded-2xl text-sm font-bold", activeTab === 'admin' ? "bg-gray-50 text-primary" : "text-gray-500")}
-                  >
-                    Admin
-                  </button>
-                )}
-                <button 
-                  onClick={() => { setActiveTab('profile'); setShowMobileMenu(false); }}
-                  className={cn("w-full text-left px-4 py-3 rounded-2xl text-sm font-bold", activeTab === 'profile' ? "bg-gray-50 text-primary" : "text-gray-500")}
-                >
-                  Profile
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        {activeTab === 'overview' ? (
-          <div className="space-y-12">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                { label: 'Total Cards', value: cards.length, icon: CreditCard, color: 'primary' },
-                { label: 'Total Limit', value: formatCurrency(totalLimit), icon: ArrowUpRight, color: 'emerald' },
-                { label: 'Total Used', value: formatCurrency(totalUsed), icon: ArrowDownLeft, color: 'rose' },
-                { label: 'Recoverable', value: formatCurrency(recoverable), icon: Users, color: 'amber' },
-              ].map((stat, i) => (
-                <motion.div 
-                  key={i}
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: i * 0.1 }}
-                  className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "w-12 h-12 rounded-2xl flex items-center justify-center",
-                      stat.color === 'primary' ? "bg-primary/10 text-primary" :
-                      stat.color === 'emerald' ? "bg-emerald-100 text-emerald-600" :
-                      stat.color === 'rose' ? "bg-rose-100 text-rose-600" : "bg-amber-100 text-amber-600"
-                    )}>
-                      <stat.icon size={24} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{stat.label}</p>
-                      <p className="text-xl font-bold text-gray-900">{stat.value}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-                <h3 className="text-xl font-bold mb-6">Spending Analysis</h3>
-                <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={spendingData}>
-                      <defs>
-                        <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#0F172B" stopOpacity={0.1}/>
-                          <stop offset="95%" stopColor="#0F172B" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94A3B8' }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94A3B8' }} tickFormatter={(v) => `₹${v}`} />
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                        formatter={(v: any) => [formatCurrency(v), 'Amount']}
-                      />
-                      <Area type="monotone" dataKey="amount" stroke="#0F172B" strokeWidth={3} fillOpacity={1} fill="url(#colorAmount)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-              <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-                <h3 className="text-xl font-bold mb-6">Distribution</h3>
-                <div className="h-[300px] w-full relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={categoryData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={8}
-                        dataKey="value"
-                      >
-                        {categoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v: any) => formatCurrency(v)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Spent</p>
-                    <p className="text-lg font-bold text-gray-900">{formatCurrency(totalUsed)}</p>
-                  </div>
-                </div>
-                <div className="mt-6 space-y-3">
-                  {categoryData.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                        <span className="text-sm font-medium text-gray-600">{item.name}</span>
-                      </div>
-                      <span className="text-sm font-bold text-gray-900">{formatCurrency(item.value)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Cards Section */}
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">My Cards</h2>
-                <Button onClick={() => setShowAddCard(true)} className="rounded-2xl px-6 py-2 h-auto">Add New Card</Button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {cards.map(card => (
-                  <CreditCardUI 
-                    key={card.id} 
-                    card={card} 
-                    transactions={transactions.filter(t => t.cardId === card.id)}
-                    onClick={() => setSelectedCard(card)}
+        {/* Content Scroll Area */}
+        <div className="flex-1 overflow-y-auto p-6 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            {activeTab === 'overview' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <StatCard 
+                    title="Total Limit" 
+                    value={formatCurrency(totalLimit)} 
+                    icon={<CreditCard className="text-blue-500" />}
+                    trend="+2.5% from last month"
+                    color="blue"
                   />
-                ))}
-                {cards.length === 0 && (
-                  <div className="col-span-full py-20 text-center bg-white rounded-3xl border-2 border-dashed border-gray-100">
-                    <CreditCard className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p className="text-gray-500">No cards added yet. Start by adding your first card.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Quick Actions & Reminders */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-              <div className="lg:col-span-2 space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold">Recent Transactions</h2>
-                  <Button variant="secondary" onClick={() => setShowAddTransaction(true)} className="rounded-2xl px-6 py-2 h-auto">Add Transaction</Button>
+                  <StatCard 
+                    title="Total Used" 
+                    value={formatCurrency(totalUsed)} 
+                    icon={<ArrowUpRight className="text-amber-500" />}
+                    trend={`${((totalUsed/totalLimit)*100).toFixed(1)}% utilization`}
+                    color="amber"
+                  />
+                  <StatCard 
+                    title="Recoverable" 
+                    value={formatCurrency(recoverable)} 
+                    icon={<ArrowDownLeft className="text-emerald-500" />}
+                    trend="Awaiting payments"
+                    color="emerald"
+                  />
                 </div>
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden min-h-[400px] flex flex-col">
-                  <div className="flex-1 overflow-y-auto">
-                    {transactions.slice(0, 10).map((t) => (
-                      <div key={t.id} className="px-8 py-4 hover:bg-gray-50/50 transition-colors flex items-center justify-between border-b border-gray-50 last:border-0">
-                        <div className="flex items-center gap-4">
-                          <div className={cn(
-                            "w-12 h-12 rounded-2xl flex items-center justify-center",
-                            t.partyType === 'self' ? "bg-blue-50 text-blue-600" : 
-                            t.partyType === 'individual' ? "bg-emerald-50 text-emerald-600" : "bg-orange-50 text-orange-600"
-                          )}>
-                            {t.partyType === 'self' ? <User size={24} /> : 
-                             t.partyType === 'individual' ? <Users size={24} /> : <Building2 size={24} />}
-                          </div>
-                          <div>
-                            <p className="font-bold text-gray-900">{t.partyName}</p>
-                            <p className="text-xs text-gray-500">{format(new Date(t.date), 'dd MMM yyyy')} • {t.paymentMode.toUpperCase()}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-gray-900">{formatCurrency(t.amount)}</p>
-                          <p className={cn("text-xs font-bold", t.isPaid ? "text-emerald-600" : "text-amber-600")}>
-                            {t.isPaid ? 'Settled' : 'Pending'}
-                          </p>
-                        </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Cards Section */}
+                  <div className="lg:col-span-2 space-y-6">
+                    <div className="flex justify-between items-center">
+                      <h2 className="text-2xl font-bold text-gray-900">My Cards</h2>
+                      <Button onClick={() => setShowAddCard(true)} className="rounded-2xl gap-2 bg-primary hover:bg-primary/90">
+                        <Plus size={18} /> Add Card
+                      </Button>
+                    </div>
+                    
+                    {cards.length === 0 ? (
+                      <div className="bg-white p-12 rounded-3xl border-2 border-dashed border-gray-200 text-center">
+                        <CreditCard className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <p className="text-gray-500 font-medium">No cards added yet. Add your first card to start tracking.</p>
                       </div>
-                    ))}
-                    {transactions.length === 0 && (
-                      <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-gray-400 h-full">
-                        <Clock className="w-12 h-12 mb-4 opacity-20" />
-                        <p>No recent transactions</p>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {cards.map(card => (
+                          <CreditCardUI 
+                            key={card.id} 
+                            card={card} 
+                            transactions={transactions}
+                            onClick={() => setSelectedCard(card)}
+                          />
+                        ))}
                       </div>
                     )}
+
+                    {/* Chart Section */}
+                    <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                      <div className="flex justify-between items-center mb-8">
+                        <h3 className="text-lg font-bold text-gray-900">Spending Trends</h3>
+                        <div className="flex gap-2">
+                          <span className="flex items-center gap-1 text-xs font-bold text-gray-400">
+                            <div className="w-2 h-2 rounded-full bg-primary" /> Last 7 Days
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={spendingData}>
+                            <defs>
+                              <linearGradient id="colorAmt" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#0F172B" stopOpacity={0.1}/>
+                                <stop offset="95%" stopColor="#0F172B" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94A3B8' }} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94A3B8' }} tickFormatter={(v) => `₹${v}`} />
+                            <Tooltip 
+                              contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                              formatter={(value: number) => [formatCurrency(value), 'Amount']}
+                            />
+                            <Area type="monotone" dataKey="amount" stroke="#0F172B" strokeWidth={3} fillOpacity={1} fill="url(#colorAmt)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sidebar Info */}
+                  <div className="space-y-8">
+                    {/* Quick Actions */}
+                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                      <h3 className="text-lg font-bold mb-4">Quick Actions</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button 
+                          onClick={() => setShowAddTransaction(true)}
+                          className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-primary hover:text-white rounded-2xl transition-all group"
+                        >
+                          <PlusCircle className="mb-2 group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-bold">New Spend</span>
+                        </button>
+                        <button 
+                          onClick={() => setShowAddParty(true)}
+                          className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-primary hover:text-white rounded-2xl transition-all group"
+                        >
+                          <UserPlus className="mb-2 group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-bold">Add Party</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Upcoming Dues */}
+                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-bold">Upcoming Dues</h3>
+                        <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-lg">Next 30 Days</span>
+                      </div>
+                      <div className="space-y-4">
+                        {cards.length === 0 ? (
+                          <p className="text-sm text-gray-400 text-center py-4 italic">No cards found</p>
+                        ) : (
+                          cards
+                            .sort((a, b) => a.dueDate - b.dueDate)
+                            .map(card => (
+                              <div key={card.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-2xl transition-colors border border-transparent hover:border-gray-100">
+                                <div className="flex items-center gap-3">
+                                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white", card.theme || "bg-primary")}>
+                                    <Calendar size={18} />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-bold text-gray-900">{card.cardType}</p>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase">Due on {card.dueDate}th</p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm font-bold text-gray-900">
+                                    {formatCurrency(transactions.filter(t => t.cardId === card.id).reduce((sum, t) => sum + t.amount, 0))}
+                                  </p>
+                                  <p className="text-[10px] text-amber-500 font-bold uppercase">Pending</p>
+                                </div>
+                              </div>
+                            ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Category Distribution */}
+                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                      <h3 className="text-lg font-bold mb-6">Spending Split</h3>
+                      <div className="h-[200px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={categoryData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={80}
+                              paddingAngle={5}
+                              dataKey="value"
+                            >
+                              {categoryData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                              formatter={(value: number) => [formatCurrency(value), '']}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        {categoryData.map((cat, i) => (
+                          <div key={i} className="flex items-center justify-between text-xs font-bold">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                              <span className="text-gray-500">{cat.name}</span>
+                            </div>
+                            <span className="text-gray-900">{formatCurrency(cat.value)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
+            )}
 
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold">Upcoming Dues</h2>
-                <div className="space-y-4">
-                  {cards.filter(card => {
-                    const today = new Date();
-                    const dueThisMonth = new Date(today.getFullYear(), today.getMonth(), card.dueDate);
-                    const diff = differenceInDays(dueThisMonth, today);
-                    return diff >= 0;
-                  }).length === 0 ? (
-                    <div className="bg-white p-12 rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center text-gray-400 min-h-[400px]">
-                      <Calendar className="w-12 h-12 mb-4 opacity-20" />
-                      <p>No upcoming dues</p>
-                    </div>
-                  ) : (
-                    cards.map(card => {
-                      const today = new Date();
-                      const dueThisMonth = new Date(today.getFullYear(), today.getMonth(), card.dueDate);
-                      const diff = differenceInDays(dueThisMonth, today);
-                      if (diff < 0) return null;
-                      
-                      return (
-                        <div key={card.id} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
-                          <div className={cn(
-                            "w-14 h-14 rounded-2xl flex flex-col items-center justify-center text-white",
-                            diff < 3 ? "bg-rose-500" : diff < 7 ? "bg-amber-500" : "bg-emerald-500"
-                          )}>
-                            <span className="text-[10px] font-bold uppercase opacity-80">{format(dueThisMonth, 'MMM')}</span>
-                            <span className="text-xl font-bold leading-none">{card.dueDate}</span>
-                          </div>
-                          <div>
-                            <p className="font-bold text-gray-900">{card.cardType} Bill</p>
-                            <p className={cn(
-                              "text-xs font-bold",
-                              diff < 3 ? "text-rose-600" : diff < 7 ? "text-amber-600" : "text-emerald-600"
-                            )}>
-                              {diff === 0 ? 'Due Today' : `${diff} days remaining`}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
+            {activeTab === 'admin' && <AdminSection user={user} setConfirmAction={setConfirmAction} />}
+            {activeTab === 'profile' && <ProfileSection user={user} setUser={setUser} />}
           </div>
-        ) : activeTab === 'admin' ? (
-          <AdminSection user={user} setConfirmAction={setConfirmAction} />
-        ) : (
-          <ProfileSection user={user} setUser={setUser} />
-        )}
+        </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-100 py-12 mt-auto sticky bottom-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2">
-            <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="CardSwipe Logo" className="w-6 h-6" referrerPolicy="no-referrer" />
-            <span className="font-bold text-lg text-primary">CardSwipe</span>
-          </div>
-          <p className="text-sm text-gray-500 text-center md:text-left">
-            A product by <a href="https://www.conzex.com" target="_blank" rel="noopener noreferrer" className="font-bold bg-gradient-to-r from-[#0F172B] to-[#3577F0] bg-clip-text text-transparent hover:opacity-80 transition-opacity">Conzex Global Private Limited</a>
-          </p>
-          <p className="text-xs text-gray-400">© 2026 CardSwipe. All rights reserved.</p>
-        </div>
-      </footer>
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {showMobileMenu && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowMobileMenu(false)}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] md:hidden"
+            />
+            <motion.aside
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 w-72 bg-[#111B21] text-[#AEBAC1] z-[70] md:hidden flex flex-col"
+            >
+              <div className="p-6 flex items-center justify-between border-b border-[#202C33]">
+                <div className="flex items-center gap-3">
+                  <img src="https://cdn.conzex.com/files/logo/circle-icon.png" alt="Logo" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
+                  <span className="font-bold text-white text-lg">CardSwipe</span>
+                </div>
+                <button onClick={() => setShowMobileMenu(false)} className="p-2 hover:bg-[#202C33] rounded-xl">
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="flex-1 py-6 px-4 space-y-2">
+                <SidebarItem 
+                  icon={<LayoutDashboard size={20} />} 
+                  label="Overview" 
+                  active={activeTab === 'overview'} 
+                  onClick={() => { setActiveTab('overview'); setShowMobileMenu(false); }} 
+                />
+                <SidebarItem 
+                  icon={<CreditCard size={20} />} 
+                  label="My Cards" 
+                  active={activeTab === 'cards'} 
+                  onClick={() => { setActiveTab('overview'); setShowMobileMenu(false); }} 
+                />
+                <SidebarItem 
+                  icon={<Users size={20} />} 
+                  label="Parties" 
+                  active={activeTab === 'parties'} 
+                  onClick={() => { setActiveTab('overview'); setShowMobileMenu(false); }} 
+                />
+                {user.role === 'admin' && (
+                  <SidebarItem 
+                    icon={<ShieldCheck size={20} />} 
+                    label="Admin Panel" 
+                    active={activeTab === 'admin'} 
+                    onClick={() => { setActiveTab('admin'); setShowMobileMenu(false); }} 
+                  />
+                )}
+                <div className="pt-6 mt-6 border-t border-[#202C33]">
+                  <SidebarItem 
+                    icon={<UserCircle size={20} />} 
+                    label="Profile" 
+                    active={activeTab === 'profile'} 
+                    onClick={() => { setActiveTab('profile'); setShowMobileMenu(false); }} 
+                  />
+                  <SidebarItem 
+                    icon={<LogOut size={20} />} 
+                    label="Logout" 
+                    onClick={handleLogout} 
+                  />
+                </div>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Modals */}
       <AnimatePresence>
@@ -1540,6 +1743,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
             transactions={transactions.filter(t => t.cardId === selectedCard.id)}
             onClose={() => setSelectedCard(null)} 
             onUpdate={fetchData}
+            setConfirmAction={setConfirmAction}
           />
         )}
       </AnimatePresence>
@@ -1635,24 +1839,22 @@ const AddCardModal = ({ onClose, onAdd }: any) => {
                 maxLength={4}
                 required
               />
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-gray-700">Card Type</label>
-                <select 
-                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-2xl outline-none"
-                  value={form.cardType}
-                  onChange={(e) => setForm({ ...form, cardType: e.target.value })}
-                >
-                  <option>Visa (Credit)</option>
-                  <option>Mastercard (Credit)</option>
-                  <option>RuPay (Credit)</option>
-                  <option>American Express</option>
-                  <option>HDFC Bank</option>
-                  <option>SBI Card</option>
-                  <option>ICICI Bank</option>
-                  <option>Axis Bank</option>
-                  <option>Other</option>
-                </select>
-              </div>
+              <Select 
+                label="Card Type"
+                value={form.cardType}
+                onChange={(e: any) => setForm({ ...form, cardType: e.target.value })}
+                options={[
+                  { label: 'Visa (Credit)', value: 'Visa (Credit)' },
+                  { label: 'Mastercard (Credit)', value: 'Mastercard (Credit)' },
+                  { label: 'RuPay (Credit)', value: 'RuPay (Credit)' },
+                  { label: 'American Express', value: 'American Express' },
+                  { label: 'HDFC Bank', value: 'HDFC Bank' },
+                  { label: 'SBI Card', value: 'SBI Card' },
+                  { label: 'ICICI Bank', value: 'ICICI Bank' },
+                  { label: 'Axis Bank', value: 'Axis Bank' },
+                  { label: 'Other', value: 'Other' },
+                ]}
+              />
               {form.cardType === 'Other' && (
                 <div className="sm:col-span-2">
                   <Input 
@@ -1774,20 +1976,16 @@ const AddTransactionModal = ({ cards, parties, onAddParty, onClose, onAdd }: any
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700">Select Card</label>
-            <select 
-              className="w-full px-4 py-2 bg-white border border-gray-200 rounded-2xl outline-none"
-              value={form.cardId}
-              onChange={(e) => setForm({ ...form, cardId: e.target.value })}
-              required
-            >
-              <option value="">Select a card</option>
-              {cards.map((c: any) => (
-                <option key={c.id} value={c.id}>{c.cardType} - {c.cardNumber.slice(-4)}</option>
-              ))}
-            </select>
-          </div>
+          <Select 
+            label="Select Card"
+            value={form.cardId}
+            onChange={(e: any) => setForm({ ...form, cardId: e.target.value })}
+            required
+            options={[
+              { label: 'Select a card', value: '' },
+              ...cards.map((c: any) => ({ label: `${c.cardType} - ${c.cardNumber.slice(-4)}`, value: c.id }))
+            ]}
+          />
 
           <Input 
             label="Amount (₹)" 
@@ -1825,36 +2023,33 @@ const AddTransactionModal = ({ cards, parties, onAddParty, onClose, onAdd }: any
                   + Create Profile
                 </button>
               </div>
-              <select 
-                className="w-full px-4 py-2 bg-white border border-gray-200 rounded-2xl outline-none"
+              <Select 
+                label={`Select ${form.partyType}`}
                 value={form.partyId}
-                onChange={(e) => {
+                onChange={(e: any) => {
                   const party = parties.find((p: any) => p.id === e.target.value);
                   setForm({ ...form, partyId: e.target.value, partyName: party ? `${party.firstName} ${party.lastName}` : '' });
                 }}
                 required
-              >
-                <option value="">Select {form.partyType}</option>
-                {filteredParties.map((p: any) => (
-                  <option key={p.id} value={p.id}>{p.firstName} {p.lastName} {p.businessName ? `(${p.businessName})` : ''}</option>
-                ))}
-              </select>
+                options={[
+                  { label: `Select ${form.partyType}`, value: '' },
+                  ...filteredParties.map((p: any) => ({ label: `${p.firstName} ${p.lastName} ${p.businessName ? `(${p.businessName})` : ''}`, value: p.id }))
+                ]}
+              />
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-700">Payment Mode</label>
-              <select 
-                className="w-full px-4 py-2 bg-white border border-gray-200 rounded-2xl outline-none"
-                value={form.paymentMode}
-                onChange={(e) => setForm({ ...form, paymentMode: e.target.value })}
-              >
-                <option value="upi">UPI</option>
-                <option value="cash">Cash</option>
-                <option value="bank_transfer">Bank Transfer</option>
-              </select>
-            </div>
+            <Select 
+              label="Payment Mode"
+              value={form.paymentMode}
+              onChange={(e: any) => setForm({ ...form, paymentMode: e.target.value })}
+              options={[
+                { label: 'UPI', value: 'upi' },
+                { label: 'Cash', value: 'cash' },
+                { label: 'Bank Transfer', value: 'bank_transfer' },
+              ]}
+            />
             <Input 
               label="Date" 
               type="date"
@@ -1987,20 +2182,25 @@ const AddPartyModal = ({ onClose, onAdd }: any) => {
   );
 };
 
-const CardDetailsModal = ({ card, transactions, onClose, onUpdate }: any) => {
+const CardDetailsModal = ({ card, transactions, onClose, onUpdate, setConfirmAction }: any) => {
   const [showFullNumber, setShowFullNumber] = useState(false);
   const cardUsed = transactions.reduce((sum: number, t: any) => sum + t.amount, 0);
   const recoverable = transactions.filter((t: any) => t.partyType !== 'self' && !t.isPaid).reduce((sum: number, t: any) => sum + t.amount, 0);
 
   const handleDelete = async () => {
-    if (confirm('Are you sure you want to delete this card and all its transactions?')) {
-      const res = await fetch(`/api/cards/${card.id}`, { method: 'DELETE' });
-      if (res.ok) {
-        toast.success('Card deleted');
-        onUpdate();
-        onClose();
+    setConfirmAction({
+      title: 'Delete Card',
+      message: 'Are you sure you want to delete this card and all its transactions? This action cannot be undone.',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        const res = await fetch(`/api/cards/${card.id}`, { method: 'DELETE' });
+        if (res.ok) {
+          toast.success('Card deleted');
+          onUpdate();
+          onClose();
+        }
       }
-    }
+    });
   };
 
   const handleSettle = async (id: string) => {
@@ -2131,31 +2331,38 @@ const ResetPassword = () => {
   if (!token) return <div className="p-8 text-center">Invalid reset link</div>;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#f0f2f5] flex items-center justify-center p-4 font-quicksand">
       <motion.div 
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="bg-white w-full max-w-md rounded-3xl shadow-xl p-10"
+        className="bg-white w-full max-w-md rounded-3xl shadow-xl p-10 border border-[#e9edef]"
       >
-        <h1 className="text-3xl font-bold mb-2">Reset Password</h1>
-        <p className="text-gray-500 mb-8">Enter your new password below.</p>
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Lock size={32} />
+          </div>
+          <h1 className="text-3xl font-bold text-[#111b21] mb-2">Reset Password</h1>
+          <p className="text-[#667781] text-sm">Enter your new password below.</p>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <Input 
             label="New Password" 
             type="password"
+            icon={Lock}
             value={password}
             onChange={(e: any) => setPassword(e.target.value)}
             required
           />
           <Input 
-            label="Confirm New Password" 
+            label="Confirm Password" 
             type="password"
+            icon={ShieldCheck}
             value={confirmPassword}
             onChange={(e: any) => setConfirmPassword(e.target.value)}
             required
           />
-          <Button className="w-full py-4 text-lg" disabled={loading}>
+          <Button className="w-full py-4 rounded-2xl text-lg font-bold shadow-lg shadow-primary/20" disabled={loading}>
             {loading ? 'Resetting...' : 'Reset Password'}
           </Button>
         </form>
