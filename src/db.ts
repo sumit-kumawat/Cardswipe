@@ -90,27 +90,79 @@ const defaultData: DatabaseSchema = {
 };
 
 const DB_PATH = path.join(process.cwd(), 'data', 'db.json');
+const DB_BACKUP_PATH = path.join(process.cwd(), 'data', 'db.backup.json');
 
 if (!fs.existsSync(path.join(process.cwd(), 'data'))) {
   fs.mkdirSync(path.join(process.cwd(), 'data'));
 }
 
-export const getDb = (): DatabaseSchema => {
+let dbInstance: DatabaseSchema | null = null;
+let isCorrupted = false;
+
+const loadDb = (): DatabaseSchema => {
   if (!fs.existsSync(DB_PATH)) {
-    saveDb(defaultData);
-    return defaultData;
+    if (fs.existsSync(DB_BACKUP_PATH)) {
+      console.log('DB missing, restoring from backup...');
+      const backup = fs.readFileSync(DB_BACKUP_PATH, 'utf-8');
+      fs.writeFileSync(DB_PATH, backup, 'utf-8');
+    } else {
+      saveDb(defaultData);
+      return defaultData;
+    }
   }
   const encrypted = fs.readFileSync(DB_PATH, 'utf-8');
+  if (!encrypted || encrypted.trim() === '') {
+    return defaultData;
+  }
   try {
     const data = decryptData(encrypted);
+    if (!data) {
+      throw new Error('Decryption returned null');
+    }
     return { ...defaultData, ...data };
   } catch (e) {
-    console.error('Failed to decrypt DB, returning default', e);
-    return defaultData;
+    isCorrupted = true;
+    console.error('CRITICAL: Failed to decrypt DB. Data may be corrupted or key is incorrect.', e);
+    // Try to restore from backup if decryption fails
+    if (fs.existsSync(DB_BACKUP_PATH)) {
+      console.log('Attempting to restore from backup...');
+      const backup = fs.readFileSync(DB_BACKUP_PATH, 'utf-8');
+      try {
+        const data = decryptData(backup);
+        if (data) {
+          console.log('Backup restored successfully');
+          isCorrupted = false;
+          fs.writeFileSync(DB_PATH, backup, 'utf-8');
+          return { ...defaultData, ...data };
+        }
+      } catch (be) {
+        console.error('Backup also corrupted or key mismatch', be);
+      }
+    }
+    throw new Error('Database decryption failed. Please check ENCRYPTION_KEY.');
   }
 };
 
+export const getDb = (): DatabaseSchema => {
+  if (!dbInstance) {
+    try {
+      dbInstance = loadDb();
+    } catch (e) {
+      console.error(e);
+      dbInstance = { ...defaultData };
+    }
+  }
+  return dbInstance;
+};
+
 export const saveDb = (data: DatabaseSchema) => {
+  if (isCorrupted) {
+    console.error('CRITICAL: Database is in corrupted state. Saving is disabled to prevent data loss.');
+    return;
+  }
+  dbInstance = data;
   const encrypted = encryptData(data);
   fs.writeFileSync(DB_PATH, encrypted, 'utf-8');
+  // Also save a backup every time we save successfully
+  fs.writeFileSync(DB_BACKUP_PATH, encrypted, 'utf-8');
 };

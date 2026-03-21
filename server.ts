@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
@@ -8,9 +9,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDb, saveDb, User, Card, Transaction, Party } from './src/db';
 import { encrypt, decrypt } from './src/utils/encryption';
 import { sendVerificationEmail, sendPasswordResetEmail } from './src/utils/email';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 declare module 'express-session' {
   interface SessionData {
