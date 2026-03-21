@@ -67,7 +67,9 @@ async function startServer() {
     const adminEmails = ['sukumawa45@gmail.com', 'kumawatsumit45@gmail.com'];
     if (adminEmails.includes(user.email)) return true;
     
-    if (user.role === 'admin') return true;
+    // Only the specific user with username 'admin' can be an admin
+    if (user.username === 'admin') return true;
+    
     return false;
   };
 
@@ -102,14 +104,48 @@ async function startServer() {
 
   // --- Auth Routes ---
   app.post('/api/register', async (req, res) => {
-    const { fullName, email, username, password } = req.body;
+    const { fullName, email, password } = req.body;
+    let { username } = req.body;
     const db = getDb();
+    
     if (db.users.find(u => u.email === email)) {
       return res.status(400).json({ error: 'Email already exists' });
     }
-    if (username && db.users.find(u => u.username === username)) {
+
+    // Auto-generate username if not provided
+    if (!username) {
+      const nameParts = fullName.trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join('') || '';
+      
+      let i = 1;
+      let found = false;
+      while (i <= firstName.length) {
+        const candidate = (firstName.substring(0, i) + lastName).toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!db.users.find(u => u.username === candidate)) {
+          username = candidate;
+          found = true;
+          break;
+        }
+        i++;
+      }
+
+      if (!found) {
+        // Fallback to email prefix if name-based generation fails
+        const emailPrefix = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        let suffix = 1;
+        username = emailPrefix;
+        while (db.users.find(u => u.username === username)) {
+          username = emailPrefix + suffix;
+          suffix++;
+        }
+      }
+    }
+
+    if (db.users.find(u => u.username === username)) {
       return res.status(400).json({ error: 'Username already exists' });
     }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const verificationToken = uuidv4();
     const newUser: User = {

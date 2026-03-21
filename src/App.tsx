@@ -214,6 +214,39 @@ const SidebarItem = ({ icon, label, active, collapsed, onClick }: any) => {
 
 // --- Pages ---
 
+const PublicLayout = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <div className="min-h-screen flex flex-col bg-[#f0f2f5] font-quicksand">
+      <header className="bg-white border-b border-[#e9edef] px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-primary rounded-[10px] flex items-center justify-center text-white shadow-lg shadow-primary/20">
+            <CreditCard className="w-6 h-6" />
+          </div>
+          <span className="text-xl font-bold text-[#111b21] tracking-tight">CardSwipe</span>
+        </div>
+      </header>
+      <main className="flex-1 flex items-center justify-center p-4">
+        {children}
+      </main>
+      <footer className="bg-white border-t border-[#e9edef] px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <p className="text-sm text-[#667781]">
+          © CardSwipe. All rights reserved.
+        </p>
+        <div className="text-sm">
+          <a 
+            href="https://www.conzex.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-primary font-bold hover:underline"
+          >
+            A Conzex Global Product
+          </a>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
 const Login = ({ onLogin }: any) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -298,7 +331,7 @@ const Login = ({ onLogin }: any) => {
 
   if (showForgot) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] p-4 font-quicksand">
+      <PublicLayout>
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -329,12 +362,12 @@ const Login = ({ onLogin }: any) => {
             </Button>
           </form>
         </motion.div>
-      </div>
+      </PublicLayout>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] p-4 font-quicksand">
+    <PublicLayout>
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -344,8 +377,8 @@ const Login = ({ onLogin }: any) => {
           <div className="w-20 h-20 bg-primary rounded-[10px] flex items-center justify-center text-white shadow-lg shadow-primary/20 mb-4">
             <CreditCard className="w-10 h-10" />
           </div>
-          <h1 className="text-3xl font-bold text-[#111b21] tracking-tight">CardSwipe</h1>
-          <p className="text-[#667781] mt-1 text-sm">Secure Credit Management</p>
+          <h1 className="text-3xl font-bold text-[#111b21] tracking-tight">Sign In</h1>
+          <p className="text-[#667781] mt-1 text-sm">Access your CardSwipe account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 text-left">
@@ -411,7 +444,7 @@ const Login = ({ onLogin }: any) => {
           </p>
         </div>
       </motion.div>
-    </div>
+    </PublicLayout>
   );
 };
 
@@ -444,7 +477,7 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] p-4 font-quicksand">
+    <PublicLayout>
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -469,7 +502,7 @@ const Register = () => {
           />
           <Input 
             label="Username (Optional)" 
-            placeholder="johndoe"
+            placeholder="Leave blank to auto-generate"
             icon={Shield}
             value={form.username}
             onChange={(e: any) => setForm({ ...form, username: e.target.value })}
@@ -498,13 +531,13 @@ const Register = () => {
           </Button>
         </form>
 
-        <div className="mt-10 pt-8 border-t border-[#e9edef] text-center">
+        <div className="mt-8 pt-6 border-t border-[#e9edef] text-center">
           <p className="text-sm text-[#667781]">
             Already have an account? <Link to="/login" className="text-primary font-bold hover:text-primary-dark transition-colors">Sign In</Link>
           </p>
         </div>
       </motion.div>
-    </div>
+    </PublicLayout>
   );
 };
 
@@ -658,7 +691,7 @@ const ProfileSection = ({ user, setUser }: any) => {
 };
 
 const AdminSection = ({ user, setConfirmAction }: any) => {
-  if (user.role !== 'admin') {
+  if (user.role !== 'admin' && user.username !== 'admin') {
     return (
       <div className="bg-white p-12 rounded-[10px] shadow-sm border border-gray-100 text-center">
         <ShieldAlert className="w-16 h-16 mx-auto mb-4 text-red-500" />
