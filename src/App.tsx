@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, AreaChart, Area 
@@ -35,7 +35,8 @@ import {
   LayoutDashboard,
   UserCircle,
   PlusCircle,
-  UserPlus
+  UserPlus,
+  Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -64,6 +65,7 @@ interface UserData {
 interface Card {
   id: string;
   cardNumber: string;
+  cardName: string;
   cardholderName: string;
   expiryDate: string;
   cvv: string;
@@ -1207,57 +1209,163 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
 };
 
 const CreditCardUI = ({ card, transactions, onClick }: { card: Card, transactions: Transaction[], onClick: () => void, key?: any }) => {
-  const [showFullNumber, setShowFullNumber] = useState(false);
-  const cardUsed = transactions.reduce((sum, t) => sum + t.amount, 0);
-  const percent = Math.min((cardUsed / card.limit) * 100, 100);
+  const [showCvv, setShowCvv] = useState(false);
+  const utilized = transactions.filter(t => t.cardId === card.id).reduce((sum, t) => sum + t.amount, 0);
+  const available = card.limit - utilized;
+  const percentage = (utilized / card.limit) * 100;
 
   return (
     <motion.div 
-      layoutId={card.id}
-      onClick={onClick}
+      whileHover={{ y: -5 }}
       className={cn(
-        "relative overflow-hidden p-8 rounded-[10px] text-white cursor-pointer shadow-2xl transition-all hover:scale-[1.02] hover:shadow-primary/20",
+        "relative h-56 rounded-[20px] p-6 text-white shadow-xl cursor-pointer overflow-hidden group",
         card.theme || "bg-primary"
       )}
+      onClick={onClick}
     >
-      <div className="flex justify-between items-start mb-8">
-        <div>
-          <p className="text-xs opacity-70 uppercase tracking-wider">{card.cardType}</p>
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-lg font-bold">
-              {showFullNumber ? card.cardNumber : `•••• •••• •••• ${card.cardNumber.slice(-4)}`}
-            </p>
+      {/* Background Pattern */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full -ml-10 -mb-10 blur-2xl" />
+
+      <div className="relative h-full flex flex-col justify-between">
+        <div className="flex justify-between items-start">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">{card.cardName || 'Credit Card'}</p>
+            <h3 className="text-lg font-bold leading-tight">{card.cardType}</h3>
+          </div>
+          <div className="flex items-center gap-2">
             <button 
-              onClick={(e) => { e.stopPropagation(); setShowFullNumber(!showFullNumber); }} 
-              className="p-1 hover:bg-white/20 rounded-[10px]"
+              onClick={(e) => { e.stopPropagation(); setShowCvv(!showCvv); }}
+              className="p-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+              title="Show CVV"
             >
-              {showFullNumber ? <EyeOff size={14} /> : <Eye size={14} />}
+              <Info size={14} />
             </button>
+            <div className="w-10 h-8 bg-amber-400/90 rounded-[5px] flex items-center justify-center">
+              <div className="w-6 h-4 border border-black/20 rounded-[2px]" />
+            </div>
           </div>
         </div>
-        <div className="w-10 h-10 bg-white/20 rounded-[10px] flex items-center justify-center backdrop-blur-md">
-          <CreditCard className="w-6 h-6" />
-        </div>
-      </div>
-      
-      <div className="space-y-4">
-        <div className="flex justify-between text-sm">
-          <span>Used: {formatCurrency(cardUsed)}</span>
-          <span>Limit: {formatCurrency(card.limit)}</span>
-        </div>
-        <div className="h-3 bg-white/20 rounded-[10px] overflow-hidden">
-          <motion.div 
-            initial={{ width: 0 }}
-            animate={{ width: `${percent}%` }}
-            className="h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]"
-          />
-        </div>
-        <div className="flex justify-between items-end">
-          <p className="font-medium">{card.cardholderName}</p>
-          <p className="text-sm opacity-70">{card.expiryDate}</p>
+
+        <div className="space-y-4">
+          <div className="flex justify-between items-end">
+            <p className="text-xl font-mono tracking-[0.2em] font-bold">
+              •••• •••• •••• {card.cardNumber.slice(-4)}
+            </p>
+          </div>
+
+          <div className="flex justify-between items-center">
+            <div className="flex gap-6">
+              <div>
+                <p className="text-[8px] font-bold uppercase tracking-tighter opacity-70">Expiry</p>
+                <p className="text-xs font-bold">{card.expiryDate}</p>
+              </div>
+              {showCvv && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <p className="text-[8px] font-bold uppercase tracking-tighter opacity-70">CVV</p>
+                  <p className="text-xs font-bold">{card.cvv}</p>
+                </motion.div>
+              )}
+            </div>
+            <div className="text-right">
+              <p className="text-[8px] font-bold uppercase tracking-tighter opacity-70">Available Limit</p>
+              <p className="text-sm font-bold">{formatCurrency(available)}</p>
+            </div>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="space-y-1">
+            <div className="h-1.5 w-full bg-white/20 rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(percentage, 100)}%` }}
+                className={cn(
+                  "h-full rounded-full",
+                  percentage > 90 ? "bg-rose-400" : percentage > 70 ? "bg-amber-400" : "bg-emerald-400"
+                )}
+              />
+            </div>
+            <div className="flex justify-between text-[8px] font-bold uppercase opacity-70">
+              <span>Utilized: {formatCurrency(utilized)}</span>
+              <span>Limit: {formatCurrency(card.limit)}</span>
+            </div>
+          </div>
         </div>
       </div>
     </motion.div>
+  );
+};
+
+const CardsSection = ({ cards, transactions, onAddCard, onSelectCard }: any) => {
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">My Cards</h2>
+        <Button onClick={onAddCard} className="rounded-[10px] gap-2 bg-primary hover:bg-primary/90">
+          <Plus size={18} /> Add Card
+        </Button>
+      </div>
+      
+      {cards.length === 0 ? (
+        <div className="bg-white p-12 rounded-[10px] border-2 border-dashed border-gray-200 text-center">
+          <CreditCard className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <p className="text-gray-500 font-medium">No cards added yet. Add your first card to start tracking.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {cards.map((card: any) => (
+            <CreditCardUI 
+              key={card.id} 
+              card={card} 
+              transactions={transactions}
+              onClick={() => onSelectCard(card)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const PartiesSection = ({ parties, onAddParty }: any) => {
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Parties</h2>
+        <Button onClick={onAddParty} className="rounded-[10px] gap-2 bg-primary hover:bg-primary/90">
+          <UserPlus size={18} /> Add Party
+        </Button>
+      </div>
+      
+      {parties.length === 0 ? (
+        <div className="bg-white p-12 rounded-[10px] border-2 border-dashed border-gray-200 text-center">
+          <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <p className="text-gray-500 font-medium">No parties added yet. Add parties to track shared expenses.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {parties.map((party: any) => (
+            <div key={party.id} className="bg-white p-6 rounded-[10px] border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-[10px] bg-primary/10 text-primary flex items-center justify-center text-xl font-bold">
+                  {party.fullName.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900">{party.fullName}</h3>
+                  <p className="text-xs text-gray-500">{party.email}</p>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Phone</span>
+                  <span className="font-medium">{party.phone}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -1275,6 +1383,18 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [confirmAction, setConfirmAction] = useState<any>(null);
+  const [preSelectedCardId, setPreSelectedCardId] = useState<string | null>(null);
+
+  const handleSpendFromCard = (card: Card) => {
+    setPreSelectedCardId(card.id);
+    setSelectedCard(null);
+    setShowAddTransaction(true);
+  };
+
+  const handleAddTransactionClose = () => {
+    setShowAddTransaction(false);
+    setPreSelectedCardId(null);
+  };
 
   const [searchParams, setSearchParams] = useSearchParams();
   const verified = searchParams.get('verified');
@@ -1470,14 +1590,14 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
             label="My Cards" 
             active={activeTab === 'cards'} 
             collapsed={isSidebarCollapsed}
-            onClick={() => setActiveTab('overview')} // For now overview has cards
+            onClick={() => setActiveTab('cards')} 
           />
           <SidebarItem 
             icon={<Users size={20} />} 
             label="Parties" 
             active={activeTab === 'parties'} 
             collapsed={isSidebarCollapsed}
-            onClick={() => setActiveTab('overview')} 
+            onClick={() => setActiveTab('parties')} 
           />
           {isUserAdmin(user) && (
             <SidebarItem 
@@ -1573,10 +1693,45 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   <div className="lg:col-span-2 space-y-6">
-                    {/* Chart Section - MOVED UP */}
+                    {/* Quick Actions - MOVED UP */}
+                    <div className="bg-white p-6 rounded-[10px] shadow-sm border border-gray-100">
+                      <h3 className="text-lg font-bold mb-4">Quick Actions</h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <button 
+                          onClick={() => setShowAddTransaction(true)}
+                          className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-primary hover:text-white rounded-[10px] transition-all group"
+                        >
+                          <PlusCircle className="mb-2 group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-bold">New Spend</span>
+                        </button>
+                        <button 
+                          onClick={() => setShowAddParty(true)}
+                          className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-primary hover:text-white rounded-[10px] transition-all group"
+                        >
+                          <UserPlus className="mb-2 group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-bold">Add Party</span>
+                        </button>
+                        <button 
+                          onClick={() => setShowAddCard(true)}
+                          className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-primary hover:text-white rounded-[10px] transition-all group"
+                        >
+                          <CreditCard className="mb-2 group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-bold">Add Card</span>
+                        </button>
+                        <button 
+                          onClick={() => setActiveTab('profile')}
+                          className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-primary hover:text-white rounded-[10px] transition-all group"
+                        >
+                          <UserCircle className="mb-2 group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-bold">Profile</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Chart Section (Spending Spotlight) */}
                     <div className="bg-white p-8 rounded-[10px] shadow-sm border border-gray-100">
                       <div className="flex justify-between items-center mb-8">
-                        <h3 className="text-lg font-bold text-gray-900">Spending Trends</h3>
+                        <h3 className="text-lg font-bold text-gray-900">Spending Spotlight</h3>
                         <div className="flex gap-2">
                           <span className="flex items-center gap-1 text-xs font-bold text-gray-400">
                             <div className="w-2 h-2 rounded-[10px] bg-primary" /> Last 7 Days
@@ -1605,56 +1760,31 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                       </div>
                     </div>
 
-                    {/* Cards Section - MOVED DOWN */}
+                    {/* Cards Preview */}
                     <div className="flex justify-between items-center">
-                      <h2 className="text-2xl font-bold text-gray-900">My Cards</h2>
-                      <Button onClick={() => setShowAddCard(true)} className="rounded-[10px] gap-2 bg-primary hover:bg-primary/90">
-                        <Plus size={18} /> Add Card
-                      </Button>
+                      <h2 className="text-xl font-bold text-gray-900">My Cards</h2>
+                      <Button variant="ghost" onClick={() => setActiveTab('cards')} className="text-primary font-bold text-xs">View All</Button>
                     </div>
                     
-                    {cards.length === 0 ? (
-                      <div className="bg-white p-12 rounded-[10px] border-2 border-dashed border-gray-200 text-center">
-                        <CreditCard className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                        <p className="text-gray-500 font-medium">No cards added yet. Add your first card to start tracking.</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {cards.map(card => (
-                          <CreditCardUI 
-                            key={card.id} 
-                            card={card} 
-                            transactions={transactions}
-                            onClick={() => setSelectedCard(card)}
-                          />
-                        ))}
-                      </div>
-                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {cards.slice(0, 2).map(card => (
+                        <CreditCardUI 
+                          key={card.id} 
+                          card={card} 
+                          transactions={transactions}
+                          onClick={() => setSelectedCard(card)}
+                        />
+                      ))}
+                      {cards.length === 0 && (
+                        <div className="col-span-2 bg-white p-8 rounded-[10px] border-2 border-dashed border-gray-100 text-center">
+                          <p className="text-gray-400 text-sm">No cards added yet</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Sidebar Info */}
                   <div className="space-y-8">
-                    {/* Quick Actions */}
-                    <div className="bg-white p-6 rounded-[10px] shadow-sm border border-gray-100">
-                      <h3 className="text-lg font-bold mb-4">Quick Actions</h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button 
-                          onClick={() => setShowAddTransaction(true)}
-                          className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-primary hover:text-white rounded-[10px] transition-all group"
-                        >
-                          <PlusCircle className="mb-2 group-hover:scale-110 transition-transform" />
-                          <span className="text-xs font-bold">New Spend</span>
-                        </button>
-                        <button 
-                          onClick={() => setShowAddParty(true)}
-                          className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-primary hover:text-white rounded-[10px] transition-all group"
-                        >
-                          <UserPlus className="mb-2 group-hover:scale-110 transition-transform" />
-                          <span className="text-xs font-bold">Add Party</span>
-                        </button>
-                      </div>
-                    </div>
-
                     {/* Upcoming Dues */}
                     <div className="bg-white p-6 rounded-[10px] shadow-sm border border-gray-100">
                       <div className="flex justify-between items-center mb-6">
@@ -1667,6 +1797,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                         ) : (
                           cards
                             .sort((a, b) => a.dueDate - b.dueDate)
+                            .slice(0, 5)
                             .map(card => (
                               <div key={card.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-[10px] transition-colors border border-transparent hover:border-gray-100">
                                 <div className="flex items-center gap-3">
@@ -1733,6 +1864,22 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
               </div>
             )}
 
+            {activeTab === 'cards' && (
+              <CardsSection 
+                cards={cards} 
+                transactions={transactions} 
+                onAddCard={() => setShowAddCard(true)}
+                onSelectCard={setSelectedCard}
+              />
+            )}
+
+            {activeTab === 'parties' && (
+              <PartiesSection 
+                parties={parties} 
+                onAddParty={() => setShowAddParty(true)}
+              />
+            )}
+
             {activeTab === 'admin' && isUserAdmin(user) && <AdminSection user={user} setConfirmAction={setConfirmAction} />}
             {activeTab === 'profile' && <ProfileSection user={user} setUser={setUser} />}
           </div>
@@ -1786,13 +1933,13 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                   icon={<CreditCard size={20} />} 
                   label="My Cards" 
                   active={activeTab === 'cards'} 
-                  onClick={() => { setActiveTab('overview'); setShowMobileMenu(false); }} 
+                  onClick={() => { setActiveTab('cards'); setShowMobileMenu(false); }} 
                 />
                 <SidebarItem 
                   icon={<Users size={20} />} 
                   label="Parties" 
                   active={activeTab === 'parties'} 
-                  onClick={() => { setActiveTab('overview'); setShowMobileMenu(false); }} 
+                  onClick={() => { setActiveTab('parties'); setShowMobileMenu(false); }} 
                 />
                 {isUserAdmin(user) && (
                   <SidebarItem 
@@ -1837,7 +1984,14 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
           <AddCardModal onClose={() => setShowAddCard(false)} onAdd={fetchData} />
         )}
         {showAddTransaction && (
-          <AddTransactionModal cards={cards} parties={parties} onAddParty={() => setShowAddParty(true)} onClose={() => setShowAddTransaction(false)} onAdd={fetchData} />
+          <AddTransactionModal 
+            cards={cards} 
+            parties={parties} 
+            onAddParty={() => setShowAddParty(true)} 
+            onClose={handleAddTransactionClose} 
+            onAdd={fetchData} 
+            preSelectedCardId={preSelectedCardId}
+          />
         )}
         {showAddParty && (
           <AddPartyModal onClose={() => setShowAddParty(false)} onAdd={fetchData} />
@@ -1849,6 +2003,7 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
             onClose={() => setSelectedCard(null)} 
             onUpdate={fetchData}
             setConfirmAction={setConfirmAction}
+            onSpend={handleSpendFromCard}
           />
         )}
       </AnimatePresence>
@@ -1857,17 +2012,21 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
 };
 
 const AddCardModal = ({ onClose, onAdd }: any) => {
+  const cvvRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     cardNumber: '',
+    cardName: '',
     cardholderName: '',
     expiryDate: '',
     cvv: '',
-    cardType: 'Visa (Credit)',
+    cardType: 'Visa',
     limit: '',
     billingDate: '1',
     dueDate: '20',
     theme: 'bg-primary'
   });
+
+  const [isCustomBank, setIsCustomBank] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1876,7 +2035,6 @@ const AddCardModal = ({ onClose, onAdd }: any) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         ...form, 
-        cardType: form.cardType === 'Other' ? (form as any).customCardType : form.cardType,
         limit: Number(form.limit), 
         billingDate: Number(form.billingDate), 
         dueDate: Number(form.dueDate) 
@@ -1892,13 +2050,24 @@ const AddCardModal = ({ onClose, onAdd }: any) => {
     }
   };
 
+  const cardTypes = [
+    'Visa', 'Mastercard', 'American Express', 'RuPay', 'Discover', 
+    'Cashback', 'Milennia', 'Travel Card', 'Reward Card', 
+    'Co-branded Card', 'Premium Corporate Cards'
+  ];
+
+  const bankNames = [
+    'HDFC Bank', 'SBI Card', 'ICICI Bank', 'Axis Bank', 'Bank of Baroda', 
+    'Bank of India', 'One Card', 'Kotak Mahindra', 'IDFC First', 'RBL Bank'
+  ];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <motion.div 
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white w-full max-lg rounded-[10px] shadow-2xl overflow-hidden"
+        className="bg-white w-full max-w-lg rounded-[10px] shadow-2xl overflow-hidden"
       >
         <div className="p-8">
           <div className="flex justify-between items-center mb-6">
@@ -1918,6 +2087,44 @@ const AddCardModal = ({ onClose, onAdd }: any) => {
                   required
                 />
               </div>
+              <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Select 
+                  label="Bank Name"
+                  value={isCustomBank ? 'Other' : form.cardName}
+                  onChange={(e: any) => {
+                    const val = e.target.value;
+                    if (val === 'Other') {
+                      setIsCustomBank(true);
+                      setForm({ ...form, cardName: '' });
+                    } else {
+                      setIsCustomBank(false);
+                      setForm({ ...form, cardName: val });
+                    }
+                  }}
+                  required
+                  options={[
+                    { label: 'Select Bank', value: '' },
+                    ...bankNames.map(b => ({ label: b, value: b })),
+                    { label: 'Other (Custom)', value: 'Other' }
+                  ]}
+                />
+                {isCustomBank && (
+                  <Input 
+                    label="Custom Bank Name"
+                    placeholder="Enter bank name"
+                    value={form.cardName}
+                    onChange={(e: any) => setForm({ ...form, cardName: e.target.value })}
+                    required
+                  />
+                )}
+              </div>
+              <Select 
+                label="Card Type"
+                value={form.cardType}
+                onChange={(e: any) => setForm({ ...form, cardType: e.target.value })}
+                required
+                options={cardTypes.map(t => ({ label: t, value: t }))}
+              />
               <div className="sm:col-span-2">
                 <Input 
                   label="Cardholder Name" 
@@ -1931,11 +2138,16 @@ const AddCardModal = ({ onClose, onAdd }: any) => {
                 label="Expiry Date" 
                 placeholder="MM/YY"
                 value={form.expiryDate}
-                onChange={(e: any) => setForm({ ...form, expiryDate: formatExpiryDate(e.target.value) })}
+                onChange={(e: any) => {
+                  const val = formatExpiryDate(e.target.value);
+                  setForm({ ...form, expiryDate: val });
+                  if (val.length === 5) cvvRef.current?.focus();
+                }}
                 maxLength={5}
                 required
               />
               <Input 
+                ref={cvvRef}
                 label="CVV" 
                 type="password"
                 placeholder="•••"
@@ -1944,33 +2156,6 @@ const AddCardModal = ({ onClose, onAdd }: any) => {
                 maxLength={4}
                 required
               />
-              <Select 
-                label="Card Type"
-                value={form.cardType}
-                onChange={(e: any) => setForm({ ...form, cardType: e.target.value })}
-                options={[
-                  { label: 'Visa (Credit)', value: 'Visa (Credit)' },
-                  { label: 'Mastercard (Credit)', value: 'Mastercard (Credit)' },
-                  { label: 'RuPay (Credit)', value: 'RuPay (Credit)' },
-                  { label: 'American Express', value: 'American Express' },
-                  { label: 'HDFC Bank', value: 'HDFC Bank' },
-                  { label: 'SBI Card', value: 'SBI Card' },
-                  { label: 'ICICI Bank', value: 'ICICI Bank' },
-                  { label: 'Axis Bank', value: 'Axis Bank' },
-                  { label: 'Other', value: 'Other' },
-                ]}
-              />
-              {form.cardType === 'Other' && (
-                <div className="sm:col-span-2">
-                  <Input 
-                    label="Custom Card Type" 
-                    placeholder="Enter card type name"
-                    value={(form as any).customCardType || ''}
-                    onChange={(e: any) => setForm({ ...form, customCardType: e.target.value } as any)}
-                    required
-                  />
-                </div>
-              )}
               <Input 
                 label="Limit (₹)" 
                 type="number"
@@ -1978,47 +2163,50 @@ const AddCardModal = ({ onClose, onAdd }: any) => {
                 onChange={(e: any) => setForm({ ...form, limit: e.target.value })}
                 required
               />
-              <Input 
-                label="Billing Date (1-31)" 
-                type="number"
-                min="1" max="31"
-                value={form.billingDate}
-                onChange={(e: any) => setForm({ ...form, billingDate: e.target.value })}
-                required
-              />
-              <Input 
-                label="Due Date (1-31)" 
-                type="number"
-                min="1" max="31"
-                value={form.dueDate}
-                onChange={(e: any) => setForm({ ...form, dueDate: e.target.value })}
-                required
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <Input 
+                  label="Bill Date" 
+                  type="number"
+                  min="1" max="31"
+                  value={form.billingDate}
+                  onChange={(e: any) => setForm({ ...form, billingDate: e.target.value })}
+                  required
+                />
+                <Input 
+                  label="Due Date" 
+                  type="number"
+                  min="1" max="31"
+                  value={form.dueDate}
+                  onChange={(e: any) => setForm({ ...form, dueDate: e.target.value })}
+                  required
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Theme</label>
+              <label className="text-sm font-medium text-gray-700">Card Theme</label>
               <div className="flex flex-wrap gap-3">
-                {['bg-primary', 'bg-emerald-600', 'bg-rose-600', 'bg-amber-600', 'bg-slate-800', 'bg-gradient-to-br from-purple-600 to-blue-500'].map(t => (
+                {['bg-primary', 'bg-emerald-600', 'bg-rose-600', 'bg-amber-600', 'bg-slate-800', 'bg-indigo-600'].map(t => (
                   <button 
                     key={t}
                     type="button"
                     onClick={() => setForm({ ...form, theme: t })}
-                    className={cn("w-8 h-8 rounded-[10px] border-2", t, form.theme === t ? "border-primary/50 scale-110" : "border-transparent")}
+                    className={cn("w-8 h-8 rounded-[10px] border-2", t, form.theme === t ? "border-black scale-110" : "border-transparent")}
                   />
                 ))}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 relative">
                   <input 
                     type="color" 
-                    className="w-8 h-8 rounded-[10px] border-none cursor-pointer"
+                    className="w-8 h-8 rounded-[10px] border-none cursor-pointer p-0 overflow-hidden"
+                    value={form.theme.startsWith('bg-[') ? form.theme.slice(4, -1) : '#4185F4'}
                     onChange={(e) => setForm({ ...form, theme: `bg-[${e.target.value}]` })}
                   />
-                  <span className="text-xs text-gray-500">Custom</span>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">Custom</span>
                 </div>
               </div>
             </div>
 
-            <Button className="w-full py-3 mt-4">Save Card</Button>
+            <Button className="w-full py-3 mt-4 font-bold">Save Card</Button>
           </form>
         </div>
       </motion.div>
@@ -2026,9 +2214,9 @@ const AddCardModal = ({ onClose, onAdd }: any) => {
   );
 };
 
-const AddTransactionModal = ({ cards, parties, onAddParty, onClose, onAdd }: any) => {
+const AddTransactionModal = ({ cards, parties, onAddParty, onClose, onAdd, preSelectedCardId }: any) => {
   const [form, setForm] = useState({
-    cardId: cards[0]?.id || '',
+    cardId: preSelectedCardId || cards[0]?.id || '',
     amount: '',
     partyType: 'self',
     partyId: '',
@@ -2287,10 +2475,12 @@ const AddPartyModal = ({ onClose, onAdd }: any) => {
   );
 };
 
-const CardDetailsModal = ({ card, transactions, onClose, onUpdate, setConfirmAction }: any) => {
+const CardDetailsModal = ({ card, transactions, onClose, onUpdate, setConfirmAction, onSpend }: any) => {
   const [showFullNumber, setShowFullNumber] = useState(false);
-  const cardUsed = transactions.reduce((sum: number, t: any) => sum + t.amount, 0);
-  const recoverable = transactions.filter((t: any) => t.partyType !== 'self' && !t.isPaid).reduce((sum: number, t: any) => sum + t.amount, 0);
+  const cardUsed = transactions.filter((t: any) => t.cardId === card.id).reduce((sum: number, t: any) => sum + t.amount, 0);
+  const available = card.limit - cardUsed;
+  const percentage = (cardUsed / card.limit) * 100;
+  const recoverable = transactions.filter((t: any) => t.cardId === card.id && t.partyType !== 'self' && !t.isPaid).reduce((sum: number, t: any) => sum + t.amount, 0);
 
   const handleDelete = async () => {
     setConfirmAction({
@@ -2325,6 +2515,7 @@ const CardDetailsModal = ({ card, transactions, onClose, onUpdate, setConfirmAct
         <div className={cn("p-8 text-white relative", card.theme)}>
           <div className="flex justify-between items-start mb-8">
             <div>
+              <p className="text-xs font-bold uppercase tracking-widest opacity-80 mb-1">{card.cardName}</p>
               <h2 className="text-3xl font-bold">{card.cardType}</h2>
               <div className="flex items-center gap-2 mt-2">
                 <p className="text-xl font-mono tracking-widest">
@@ -2335,21 +2526,47 @@ const CardDetailsModal = ({ card, transactions, onClose, onUpdate, setConfirmAct
                 </button>
               </div>
             </div>
-            <Button variant="ghost" onClick={onClose} className="p-2 text-white hover:bg-white/20"><X /></Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => onSpend(card)}
+                className="bg-white text-gray-900 hover:bg-gray-100 rounded-[10px] gap-2 font-bold"
+              >
+                <Plus size={18} /> Spend
+              </Button>
+              <Button variant="ghost" onClick={onClose} className="p-2 text-white hover:bg-white/20"><X /></Button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-3 gap-4 text-sm mb-6">
             <div>
-              <p className="opacity-70">Limit</p>
+              <p className="opacity-70 font-bold uppercase text-[10px]">Limit</p>
               <p className="text-lg font-bold">{formatCurrency(card.limit)}</p>
             </div>
             <div>
-              <p className="opacity-70">Used</p>
+              <p className="opacity-70 font-bold uppercase text-[10px]">Used</p>
               <p className="text-lg font-bold">{formatCurrency(cardUsed)}</p>
             </div>
             <div>
-              <p className="opacity-70">Recoverable</p>
-              <p className="text-lg font-bold">{formatCurrency(recoverable)}</p>
+              <p className="opacity-70 font-bold uppercase text-[10px]">Available</p>
+              <p className="text-lg font-bold">{formatCurrency(available)}</p>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="space-y-2">
+            <div className="h-2 w-full bg-white/20 rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(percentage, 100)}%` }}
+                className={cn(
+                  "h-full rounded-full",
+                  percentage > 90 ? "bg-rose-400" : percentage > 70 ? "bg-amber-400" : "bg-emerald-400"
+                )}
+              />
+            </div>
+            <div className="flex justify-between text-[10px] font-bold uppercase opacity-80">
+              <span>{percentage.toFixed(1)}% Utilized</span>
+              <span>{formatCurrency(recoverable)} Recoverable</span>
             </div>
           </div>
         </div>
@@ -2364,7 +2581,7 @@ const CardDetailsModal = ({ card, transactions, onClose, onUpdate, setConfirmAct
           </div>
 
           <div className="space-y-4">
-            {transactions.map((t: any) => (
+            {transactions.filter((t: any) => t.cardId === card.id).map((t: any) => (
               <div key={t.id} className="p-4 rounded-[10px] border border-gray-100 flex items-center justify-between bg-gray-50/50">
                 <div className="flex items-center gap-4">
                   <div className={cn(
@@ -2393,7 +2610,7 @@ const CardDetailsModal = ({ card, transactions, onClose, onUpdate, setConfirmAct
                 </div>
               </div>
             ))}
-            {transactions.length === 0 && (
+            {transactions.filter((t: any) => t.cardId === card.id).length === 0 && (
               <div className="text-center py-12 text-gray-400">No transactions for this card</div>
             )}
           </div>

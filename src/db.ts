@@ -23,6 +23,7 @@ export interface Card {
   id: string;
   userId: string;
   cardNumber: string; // Encrypted
+  cardName: string; // Bank Name
   cardholderName: string;
   expiryDate: string;
   cvv: string; // Encrypted
