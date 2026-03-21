@@ -36,7 +36,10 @@ import {
   UserCircle,
   PlusCircle,
   UserPlus,
-  Info
+  Info,
+  Wallet,
+  Edit,
+  Trash
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -1210,7 +1213,10 @@ const AdminSection = ({ user, setConfirmAction }: any) => {
 
 const CreditCardUI = ({ card, transactions, onClick }: { card: Card, transactions: Transaction[], onClick: () => void, key?: any }) => {
   const [showCvv, setShowCvv] = useState(false);
-  const utilized = transactions.filter(t => t.cardId === card.id).reduce((sum, t) => sum + t.amount, 0);
+  const utilized = transactions.filter(t => t.cardId === card.id).reduce((sum, t) => {
+    if (t.type === 'payment') return sum - t.amount;
+    return sum + t.amount;
+  }, 0);
   const available = card.limit - utilized;
   const percentage = (utilized / card.limit) * 100;
 
@@ -1236,10 +1242,10 @@ const CreditCardUI = ({ card, transactions, onClick }: { card: Card, transaction
           <div className="flex items-center gap-2">
             <button 
               onClick={(e) => { e.stopPropagation(); setShowCvv(!showCvv); }}
-              className="p-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+              className="p-1 hover:bg-white/10 rounded-full transition-colors opacity-30 hover:opacity-100"
               title="Show CVV"
             >
-              <Info size={14} />
+              <Info size={12} />
             </button>
             <div className="w-10 h-8 bg-amber-400/90 rounded-[5px] flex items-center justify-center">
               <div className="w-6 h-4 border border-black/20 rounded-[2px]" />
@@ -1260,12 +1266,10 @@ const CreditCardUI = ({ card, transactions, onClick }: { card: Card, transaction
                 <p className="text-[8px] font-bold uppercase tracking-tighter opacity-70">Expiry</p>
                 <p className="text-xs font-bold">{card.expiryDate}</p>
               </div>
-              {showCvv && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                  <p className="text-[8px] font-bold uppercase tracking-tighter opacity-70">CVV</p>
-                  <p className="text-xs font-bold">{card.cvv}</p>
-                </motion.div>
-              )}
+              <div>
+                <p className="text-[8px] font-bold uppercase tracking-tighter opacity-70">CVV</p>
+                <p className="text-xs font-bold">{showCvv ? card.cvv : '•••'}</p>
+              </div>
             </div>
             <div className="text-right">
               <p className="text-[8px] font-bold uppercase tracking-tighter opacity-70">Available Limit</p>
@@ -1327,7 +1331,7 @@ const CardsSection = ({ cards, transactions, onAddCard, onSelectCard }: any) => 
   );
 };
 
-const PartiesSection = ({ parties, onAddParty }: any) => {
+const PartiesSection = ({ parties, onAddParty, onEditParty, onDeleteParty }: any) => {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex justify-between items-center">
@@ -1345,20 +1349,32 @@ const PartiesSection = ({ parties, onAddParty }: any) => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {parties.map((party: any) => (
-            <div key={party.id} className="bg-white p-6 rounded-[10px] border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+            <div key={party.id} className="bg-white p-6 rounded-[10px] border border-gray-100 shadow-sm hover:shadow-md transition-shadow group relative">
+              <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => onEditParty(party)} className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-full transition-colors">
+                  <Edit size={14} />
+                </button>
+                <button onClick={() => onDeleteParty(party)} className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-colors">
+                  <Trash size={14} />
+                </button>
+              </div>
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-12 h-12 rounded-[10px] bg-primary/10 text-primary flex items-center justify-center text-xl font-bold">
                   {party.fullName.charAt(0)}
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900">{party.fullName}</h3>
-                  <p className="text-xs text-gray-500">{party.email}</p>
+                  <p className="text-[10px] font-bold uppercase text-primary tracking-widest">{party.type}</p>
                 </div>
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
+                  <span className="text-gray-500">Email</span>
+                  <span className="font-medium">{party.email || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-500">Phone</span>
-                  <span className="font-medium">{party.phone}</span>
+                  <span className="font-medium">{party.phone || 'N/A'}</span>
                 </div>
               </div>
             </div>
@@ -1380,10 +1396,31 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
   const [showAddCard, setShowAddCard] = useState(false);
   const [showAddTransaction, setShowAddTransaction] = useState(false);
   const [showAddParty, setShowAddParty] = useState(false);
+  const [partyToEdit, setPartyToEdit] = useState<Party | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [confirmAction, setConfirmAction] = useState<any>(null);
   const [preSelectedCardId, setPreSelectedCardId] = useState<string | null>(null);
+
+  const handleEditParty = (party: Party) => {
+    setPartyToEdit(party);
+    setShowAddParty(true);
+  };
+
+  const handleDeleteParty = (party: Party) => {
+    setConfirmAction({
+      title: 'Delete Party?',
+      message: `Are you sure you want to delete ${party.fullName}? This action cannot be undone.`,
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        const res = await fetch(`/api/parties/${party.id}`, { method: 'DELETE' });
+        if (res.ok) {
+          toast.success('Party deleted');
+          fetchData();
+        }
+      }
+    });
+  };
 
   const handleSpendFromCard = (card: Card) => {
     setPreSelectedCardId(card.id);
@@ -1489,31 +1526,97 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
     };
   }, [verified]);
 
+  const [chartFilter, setChartFilter] = useState<'monthly' | 'quarterly' | 'semi-annually' | 'annually'>('monthly');
+
+  const getFinancialYearRange = () => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-indexed, 3 is April
+
+    let startYear = currentYear;
+    if (currentMonth < 3) { // Jan, Feb, Mar
+      startYear = currentYear - 1;
+    }
+    
+    const startDate = new Date(startYear, 3, 1); // April 1st
+    const endDate = new Date(startYear + 1, 2, 31, 23, 59, 59); // March 31st next year
+    
+    return { startDate, endDate };
+  };
+
+  const { startDate: fyStart, endDate: fyEnd } = getFinancialYearRange();
+
   const totalLimit = cards.reduce((sum, c) => sum + c.limit, 0);
-  const totalUsed = transactions.reduce((sum, t) => sum + t.amount, 0);
+  const totalUsed = transactions.reduce((sum, t) => {
+    if (t.type === 'payment') return sum - t.amount;
+    return sum + t.amount;
+  }, 0);
   const recoverable = transactions.filter(t => t.partyType !== 'self' && !t.isPaid).reduce((sum, t) => sum + t.amount, 0);
 
-  // Prepare chart data
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    return format(d, 'yyyy-MM-dd');
-  }).reverse();
-
-  const spendingData = last7Days.map(date => {
-    const dayTotal = transactions
-      .filter(t => format(new Date(t.date), 'yyyy-MM-dd') === date)
-      .reduce((sum, t) => sum + t.amount, 0);
-    return {
-      date: format(new Date(date), 'dd MMM'),
-      amount: dayTotal
-    };
+  // Prepare chart data for current FY
+  const fyTransactions = transactions.filter(t => {
+    const d = new Date(t.date);
+    return d >= fyStart && d <= fyEnd;
   });
 
+  const getSpendingData = () => {
+    if (chartFilter === 'annually') {
+      return [{
+        date: `FY ${fyStart.getFullYear()}-${(fyStart.getFullYear() + 1).toString().slice(-2)}`,
+        amount: fyTransactions.reduce((sum, t) => sum + (t.type === 'payment' ? 0 : t.amount), 0)
+      }];
+    }
+
+    if (chartFilter === 'semi-annually') {
+      const h1 = fyTransactions.filter(t => new Date(t.date).getMonth() >= 3 && new Date(t.date).getMonth() <= 8);
+      const h2 = fyTransactions.filter(t => new Date(t.date).getMonth() > 8 || new Date(t.date).getMonth() < 3);
+      return [
+        { date: 'H1 (Apr-Sep)', amount: h1.reduce((sum, t) => sum + (t.type === 'payment' ? 0 : t.amount), 0) },
+        { date: 'H2 (Oct-Mar)', amount: h2.reduce((sum, t) => sum + (t.type === 'payment' ? 0 : t.amount), 0) }
+      ];
+    }
+
+    if (chartFilter === 'quarterly') {
+      const quarters = [
+        { name: 'Q1', months: [3, 4, 5] },
+        { name: 'Q2', months: [6, 7, 8] },
+        { name: 'Q3', months: [9, 10, 11] },
+        { name: 'Q4', months: [0, 1, 2] }
+      ];
+      return quarters.map(q => ({
+        date: q.name,
+        amount: fyTransactions.filter(t => q.months.includes(new Date(t.date).getMonth())).reduce((sum, t) => sum + (t.type === 'payment' ? 0 : t.amount), 0)
+      }));
+    }
+
+    // Default: Monthly
+    const months = [];
+    let current = new Date(fyStart);
+    while (current <= fyEnd) {
+      months.push(new Date(current));
+      current.setMonth(current.getMonth() + 1);
+    }
+
+    return months.map(m => {
+      const monthTotal = fyTransactions
+        .filter(t => {
+          const d = new Date(t.date);
+          return d.getMonth() === m.getMonth() && d.getFullYear() === m.getFullYear();
+        })
+        .reduce((sum, t) => sum + (t.type === 'payment' ? 0 : t.amount), 0);
+      return {
+        date: format(m, 'MMM'),
+        amount: monthTotal
+      };
+    });
+  };
+
+  const spendingData = getSpendingData();
+
   const categoryData = [
-    { name: 'Self', value: transactions.filter(t => t.partyType === 'self').reduce((sum, t) => sum + t.amount, 0), color: '#0F172B' },
-    { name: 'Individual', value: transactions.filter(t => t.partyType === 'individual').reduce((sum, t) => sum + t.amount, 0), color: '#10B981' },
-    { name: 'Business', value: transactions.filter(t => t.partyType === 'business').reduce((sum, t) => sum + t.amount, 0), color: '#F59E0B' },
+    { name: 'Self', value: transactions.filter(t => t.partyType === 'self' && t.type !== 'payment').reduce((sum, t) => sum + t.amount, 0), color: '#0F172B' },
+    { name: 'Individual', value: transactions.filter(t => t.partyType === 'individual' && t.type !== 'payment').reduce((sum, t) => sum + t.amount, 0), color: '#10B981' },
+    { name: 'Business', value: transactions.filter(t => t.partyType === 'business' && t.type !== 'payment').reduce((sum, t) => sum + t.amount, 0), color: '#F59E0B' },
   ].filter(d => d.value > 0);
 
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
@@ -1719,23 +1822,42 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
                           <span className="text-xs font-bold">Add Card</span>
                         </button>
                         <button 
-                          onClick={() => setActiveTab('profile')}
+                          onClick={() => {
+                            if (cards.length > 0) {
+                              setSelectedCard(cards[0]);
+                              // We'll trigger the "Add Fund" modal from CardDetails
+                            } else {
+                              toast.error('Please add a card first');
+                            }
+                          }}
                           className="flex flex-col items-center justify-center p-4 bg-gray-50 hover:bg-primary hover:text-white rounded-[10px] transition-all group"
                         >
-                          <UserCircle className="mb-2 group-hover:scale-110 transition-transform" />
-                          <span className="text-xs font-bold">Profile</span>
+                          <Wallet className="mb-2 group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-bold">Make Payment</span>
                         </button>
                       </div>
                     </div>
 
                     {/* Chart Section (Spending Spotlight) */}
                     <div className="bg-white p-8 rounded-[10px] shadow-sm border border-gray-100">
-                      <div className="flex justify-between items-center mb-8">
-                        <h3 className="text-lg font-bold text-gray-900">Spending Spotlight</h3>
-                        <div className="flex gap-2">
-                          <span className="flex items-center gap-1 text-xs font-bold text-gray-400">
-                            <div className="w-2 h-2 rounded-[10px] bg-primary" /> Last 7 Days
-                          </span>
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-900">Spending Spotlight</h3>
+                          <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">FY {fyStart.getFullYear()}-{fyStart.getFullYear()+1}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1 bg-gray-50 p-1 rounded-[10px] border border-gray-100">
+                          {(['monthly', 'quarterly', 'semi-annually', 'annually'] as const).map((filter) => (
+                            <button
+                              key={filter}
+                              onClick={() => setChartFilter(filter)}
+                              className={cn(
+                                "px-3 py-1.5 rounded-[10px] text-[10px] font-bold uppercase tracking-wider transition-all",
+                                chartFilter === filter ? "bg-white text-primary shadow-sm" : "text-gray-400 hover:text-gray-600"
+                              )}
+                            >
+                              {filter.replace('-', ' ')}
+                            </button>
+                          ))}
                         </div>
                       </div>
                       <div className="h-[300px] w-full">
@@ -1876,7 +1998,12 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
             {activeTab === 'parties' && (
               <PartiesSection 
                 parties={parties} 
-                onAddParty={() => setShowAddParty(true)}
+                onAddParty={() => {
+                  setPartyToEdit(null);
+                  setShowAddParty(true);
+                }}
+                onEditParty={handleEditParty}
+                onDeleteParty={handleDeleteParty}
               />
             )}
 
@@ -1994,7 +2121,14 @@ const Dashboard = ({ user, setUser }: { user: UserData, setUser: (u: UserData | 
           />
         )}
         {showAddParty && (
-          <AddPartyModal onClose={() => setShowAddParty(false)} onAdd={fetchData} />
+          <AddPartyModal 
+            onClose={() => {
+              setShowAddParty(false);
+              setPartyToEdit(null);
+            }} 
+            onAdd={fetchData} 
+            partyToEdit={partyToEdit}
+          />
         )}
         {selectedCard && (
           <CardDetailsModal 
@@ -2276,7 +2410,10 @@ const AddTransactionModal = ({ cards, parties, onAddParty, onClose, onAdd, preSe
             required
             options={[
               { label: 'Select a card', value: '' },
-              ...cards.map((c: any) => ({ label: `${c.cardType} - ${c.cardNumber.slice(-4)}`, value: c.id }))
+              ...cards.map((c: any) => ({ 
+                label: `${c.cardName} - ${c.cardType} (**** ${c.cardNumber.slice(-4)})`, 
+                value: c.id 
+              }))
             ]}
           />
 
@@ -2365,30 +2502,32 @@ const AddTransactionModal = ({ cards, parties, onAddParty, onClose, onAdd, preSe
   );
 };
 
-const AddPartyModal = ({ onClose, onAdd }: any) => {
+const AddPartyModal = ({ onClose, onAdd, partyToEdit }: any) => {
   const [form, setForm] = useState({
-    type: 'individual',
-    firstName: '',
-    lastName: '',
-    phone: '',
-    email: '',
-    businessName: '',
-    gstNumber: ''
+    type: partyToEdit?.type || 'individual',
+    fullName: partyToEdit?.fullName || '',
+    phone: partyToEdit?.phone || '',
+    email: partyToEdit?.email || '',
+    businessName: partyToEdit?.businessName || '',
+    gstNumber: partyToEdit?.gstNumber || ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/parties', {
-      method: 'POST',
+    const url = partyToEdit ? `/api/parties/${partyToEdit.id}` : '/api/parties';
+    const method = partyToEdit ? 'PUT' : 'POST';
+    
+    const res = await fetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form)
     });
     if (res.ok) {
-      toast.success('Profile created!');
+      toast.success(partyToEdit ? 'Party updated' : 'Party created!');
       onAdd();
       onClose();
     } else {
-      toast.error('Failed to create profile');
+      toast.error(partyToEdit ? 'Failed to update party' : 'Failed to create party');
     }
   };
 
@@ -2401,13 +2540,13 @@ const AddPartyModal = ({ onClose, onAdd }: any) => {
         className="bg-white w-full max-w-lg rounded-[10px] shadow-2xl p-8"
       >
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">Create Profile</h2>
+          <h2 className="text-2xl font-bold">{partyToEdit ? 'Edit Party' : 'Create Party'}</h2>
           <Button variant="ghost" onClick={onClose} className="p-2"><X /></Button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex gap-4 mb-4">
-            {['individual', 'business'].map(type => (
+            {['individual', 'business', 'self'].map(type => (
               <button
                 key={type}
                 type="button"
@@ -2422,53 +2561,43 @@ const AddPartyModal = ({ onClose, onAdd }: any) => {
             ))}
           </div>
 
+          <Input 
+            label={form.type === 'business' ? "Business Name" : "Full Name"} 
+            value={form.fullName}
+            onChange={(e: any) => setForm({ ...form, fullName: e.target.value })}
+            required
+            placeholder={form.type === 'business' ? "Enter business name" : "Enter full name"}
+          />
+
           <div className="grid grid-cols-2 gap-4">
             <Input 
-              label="First Name" 
-              value={form.firstName}
-              onChange={(e: any) => setForm({ ...form, firstName: e.target.value })}
-              required
+              label="Phone Number" 
+              type="tel"
+              value={form.phone}
+              onChange={(e: any) => setForm({ ...form, phone: e.target.value })}
+              placeholder="Optional"
             />
             <Input 
-              label="Last Name" 
-              value={form.lastName}
-              onChange={(e: any) => setForm({ ...form, lastName: e.target.value })}
-              required
+              label="Email Address" 
+              type="email"
+              value={form.email}
+              onChange={(e: any) => setForm({ ...form, email: e.target.value })}
+              placeholder="Optional"
             />
           </div>
 
-          <Input 
-            label="Phone Number" 
-            type="tel"
-            value={form.phone}
-            onChange={(e: any) => setForm({ ...form, phone: e.target.value })}
-            required
-          />
-
-          <Input 
-            label="Email (Optional)" 
-            type="email"
-            value={form.email}
-            onChange={(e: any) => setForm({ ...form, email: e.target.value })}
-          />
-
           {form.type === 'business' && (
-            <>
-              <Input 
-                label="Business Name" 
-                value={form.businessName}
-                onChange={(e: any) => setForm({ ...form, businessName: e.target.value })}
-                required
-              />
-              <Input 
-                label="GST Number (Optional)" 
-                value={form.gstNumber}
-                onChange={(e: any) => setForm({ ...form, gstNumber: e.target.value })}
-              />
-            </>
+            <Input 
+              label="GST Number" 
+              value={form.gstNumber}
+              onChange={(e: any) => setForm({ ...form, gstNumber: e.target.value })}
+              placeholder="Optional"
+            />
           )}
 
-          <Button className="w-full py-3 mt-4">Create Profile</Button>
+          <Button className="w-full py-3 mt-4 font-bold">
+            {partyToEdit ? 'Update Party' : 'Save Party'}
+          </Button>
         </form>
       </motion.div>
     </div>
@@ -2477,7 +2606,11 @@ const AddPartyModal = ({ onClose, onAdd }: any) => {
 
 const CardDetailsModal = ({ card, transactions, onClose, onUpdate, setConfirmAction, onSpend }: any) => {
   const [showFullNumber, setShowFullNumber] = useState(false);
-  const cardUsed = transactions.filter((t: any) => t.cardId === card.id).reduce((sum: number, t: any) => sum + t.amount, 0);
+  const [showAddFund, setShowAddFund] = useState(false);
+  const cardUsed = transactions.filter((t: any) => t.cardId === card.id).reduce((sum: number, t: any) => {
+    if (t.type === 'payment') return sum - t.amount;
+    return sum + t.amount;
+  }, 0);
   const available = card.limit - cardUsed;
   const percentage = (cardUsed / card.limit) * 100;
   const recoverable = transactions.filter((t: any) => t.cardId === card.id && t.partyType !== 'self' && !t.isPaid).reduce((sum: number, t: any) => sum + t.amount, 0);
@@ -2527,6 +2660,12 @@ const CardDetailsModal = ({ card, transactions, onClose, onUpdate, setConfirmAct
               </div>
             </div>
             <div className="flex gap-2">
+              <Button 
+                onClick={() => setShowAddFund(true)}
+                className="bg-white text-gray-900 hover:bg-gray-100 rounded-[10px] gap-2 font-bold"
+              >
+                <Wallet size={18} /> Add Fund
+              </Button>
               <Button 
                 onClick={() => onSpend(card)}
                 className="bg-white text-gray-900 hover:bg-gray-100 rounded-[10px] gap-2 font-bold"
@@ -2581,28 +2720,29 @@ const CardDetailsModal = ({ card, transactions, onClose, onUpdate, setConfirmAct
           </div>
 
           <div className="space-y-4">
-            {transactions.filter((t: any) => t.cardId === card.id).map((t: any) => (
+            {transactions.filter((t: any) => t.cardId === card.id).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((t: any) => (
               <div key={t.id} className="p-4 rounded-[10px] border border-gray-100 flex items-center justify-between bg-gray-50/50">
                 <div className="flex items-center gap-4">
                   <div className={cn(
                     "w-10 h-10 rounded-[10px] flex items-center justify-center",
-                    t.partyType === 'self' ? "bg-blue-100 text-blue-600" : 
-                    t.partyType === 'individual' ? "bg-emerald-100 text-emerald-600" : "bg-orange-100 text-orange-600"
+                    t.type === 'payment' ? "bg-emerald-100 text-emerald-600" : "bg-primary/10 text-primary"
                   )}>
-                    {t.partyType === 'self' ? <User size={20} /> : 
-                     t.partyType === 'individual' ? <Users size={20} /> : <Building2 size={20} />}
+                    {t.type === 'payment' ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
                   </div>
                   <div>
-                    <p className="font-bold">{t.partyName}</p>
-                    <p className="text-xs text-gray-500">{format(new Date(t.date), 'dd MMM yyyy')} • {t.paymentMode.toUpperCase()}</p>
+                    <p className="font-bold text-gray-900">{t.partyName}</p>
+                    <p className="text-xs text-gray-500">{format(new Date(t.date), 'dd MMM yyyy')} • {t.paymentMode}</p>
                   </div>
                 </div>
                 <div className="text-right flex items-center gap-4">
-                  <div>
-                    <p className="font-bold">{formatCurrency(t.amount)}</p>
-                    <p className={cn("text-xs font-medium", t.isPaid ? "text-emerald-600" : "text-amber-600")}>
-                      {t.isPaid ? 'Settled' : 'Pending'}
+                  <div className="text-right">
+                    <p className={cn(
+                      "font-bold",
+                      t.type === 'payment' ? "text-emerald-600" : "text-gray-900"
+                    )}>
+                      {t.type === 'payment' ? '+' : '-'}{formatCurrency(t.amount)}
                     </p>
+                    <p className="text-[10px] font-bold uppercase text-gray-400">{t.type === 'payment' ? 'Payment' : 'Spend'}</p>
                   </div>
                   {!t.isPaid && t.partyType !== 'self' && (
                     <Button variant="secondary" className="text-xs py-1 px-3" onClick={() => handleSettle(t.id)}>Settle</Button>
@@ -2615,6 +2755,114 @@ const CardDetailsModal = ({ card, transactions, onClose, onUpdate, setConfirmAct
             )}
           </div>
         </div>
+
+        <AnimatePresence>
+          {showAddFund && (
+            <AddFundModal 
+              card={card} 
+              onClose={() => setShowAddFund(false)} 
+              onAdd={() => {
+                onUpdate();
+                setShowAddFund(false);
+              }} 
+            />
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </div>
+  );
+};
+
+const AddFundModal = ({ card, onClose, onAdd }: any) => {
+  const [form, setForm] = useState({
+    amount: '',
+    paymentMode: 'upi',
+    date: format(new Date(), 'yyyy-MM-dd'),
+    notes: ''
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = await fetch('/api/transactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        ...form, 
+        cardId: card.id,
+        type: 'payment',
+        amount: Number(form.amount), 
+        partyType: 'self',
+        partyName: 'Fund Added',
+        isPaid: true 
+      })
+    });
+    if (res.ok) {
+      toast.success('Fund added successfully!');
+      onAdd();
+      onClose();
+    } else {
+      const data = await res.json();
+      toast.error(data.error || 'Failed to add fund');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-white w-full max-w-md rounded-[20px] shadow-2xl p-8"
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">Add Fund to Card</h2>
+          <Button variant="ghost" onClick={onClose} className="p-2"><X /></Button>
+        </div>
+
+        <div className="mb-6 p-4 bg-primary/5 rounded-[10px] border border-primary/10">
+          <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Target Card</p>
+          <p className="text-sm font-bold text-gray-900">{card.cardName} - {card.cardType}</p>
+          <p className="text-xs text-gray-500">**** **** **** {card.cardNumber.slice(-4)}</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input 
+            label="Amount (₹)" 
+            type="number"
+            value={form.amount}
+            onChange={(e: any) => setForm({ ...form, amount: e.target.value })}
+            required
+            placeholder="Enter amount to add"
+          />
+
+          <Select 
+            label="Payment Mode"
+            value={form.paymentMode}
+            onChange={(e: any) => setForm({ ...form, paymentMode: e.target.value })}
+            options={[
+              { label: 'UPI', value: 'upi' },
+              { label: 'Bank Transfer', value: 'bank_transfer' },
+              { label: 'Cred', value: 'cred' },
+            ]}
+          />
+
+          <Input 
+            label="Date" 
+            type="date"
+            value={form.date}
+            onChange={(e: any) => setForm({ ...form, date: e.target.value })}
+            required
+          />
+
+          <Input 
+            label="Notes" 
+            value={form.notes}
+            onChange={(e: any) => setForm({ ...form, notes: e.target.value })}
+            placeholder="Optional notes"
+          />
+
+          <Button className="w-full py-3 mt-4 font-bold">Confirm Payment</Button>
+        </form>
       </motion.div>
     </div>
   );
