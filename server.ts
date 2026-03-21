@@ -577,6 +577,7 @@ async function startServer() {
     const db = getDb();
     const transactions = db.transactions.filter(t => t.userId === req.session.userId).map(t => ({
       ...t,
+      type: t.type || 'spend', // Default to spend for legacy data
       description: decrypt(t.description)
     }));
     res.json(transactions);
@@ -592,7 +593,8 @@ async function startServer() {
       ...req.body,
       id: uuidv4(),
       userId: req.session.userId,
-      description: encrypt(req.body.description),
+      type: req.body.type || 'spend',
+      description: encrypt(req.body.description || ''),
       createdAt: new Date().toISOString()
     };
     db.transactions.push(transactionData);
